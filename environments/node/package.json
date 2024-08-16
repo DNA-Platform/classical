@@ -1,0 +1,22 @@
+{
+  "name": "classical",
+  "version": "1.0.0",
+  "description": "A TypeScript object-oriented base class library in the spirit of C#",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test:env": "jest"
+  },
+  "author": "Doug",
+  "license": "DNA Platform License",
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.4"
+  }
+}
