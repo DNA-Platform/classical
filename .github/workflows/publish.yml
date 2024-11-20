@@ -13,7 +13,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: 'https://registry.npmjs.org/'
+          scope: '@dna.love'  # Add this line for your scope
       
       - name: Install dependencies
         run: npm ci
@@ -25,6 +26,9 @@ jobs:
         run: npm run build
       
       - name: Publish to NPM
-        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}  # Add both variations
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm publish --access public
