@@ -1,5 +1,5 @@
 {
-  "name": "classical",
+  "name": "@dna.love/classical",
   "version": "1.0.0",
   "description": "A TypeScript object-oriented base class library in the spirit of C#",
   "main": "dist/index.js",
