@@ -1,5 +1,5 @@
-import '@src/index';
-import u from '@src/utilities';
+import '../src/index';
+import u from '../src/utilities';
 
 // Tests for areEqual
 test('areEqual should return true for equal primitive values', () => {

@@ -1,5 +1,5 @@
-import '@src/index';
-import Assert from '@src/assert';
+import '../src/index';
+import Assert from '../src/assert';
 
 // Helper function to test exceptions
 function expectThrow(fn: () => void, expectedMessage: string): void {

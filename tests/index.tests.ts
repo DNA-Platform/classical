@@ -1,4 +1,4 @@
-import '@src/index';
+import '../src/index';
 
 // Helper function to create a new array for testing
 function createTestArray(): any[] {

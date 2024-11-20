@@ -1,5 +1,5 @@
-import '@src/index';
-import { Dictionary, Queryable, Enumerable, foreach } from '@src/collections';
+import '../src/index';
+import { Dictionary, Queryable, Enumerable, foreach } from '../src/collections';
 
 test('Dictionary.add should add a key-value pair to the dictionary', () => {
     const dictionary = new Dictionary<number, string>();
@@ -227,7 +227,7 @@ describe('Enumerable', () => {
         test('forEach should handle an empty sequence without errors', () => {
             const items: number[] = [];
             const results: number[] = [];
-            const operation = (item: number) => results.push(item * 2);
+            const operation = (item: number) => results.push(item * 2) as number;
             Enumerable.forEach(items, operation);
             const expected: number[] = [];
             const actual = results;
