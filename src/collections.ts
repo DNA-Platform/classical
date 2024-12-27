@@ -1,18 +1,19 @@
-import Assert from './assert';
-import u from './utilities';
+/// <reference path="./classical.d.ts" />
+import { ensure, instanceIs, Lazy } from './util';
 
 export interface IHashTable<TKey, TValue> {
-    [key: number]: KeyValuePair<TKey, TValue>[];
+    [key: string]: KeyValuePair<TKey, TValue>[];
 }
 
 //A dictionary is a mapping between unique keys and arbitrary values.
 //Keys must implement getHashCode and equals from the IObject interface.
 export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, TValue>> {
-
     private _hashTable: IHashTable<TKey, TValue> = {};
     private _bucketIndex: number;
     private _numberOfBuckets: number;
     private _numberOfElements = 0;
+
+    get hashTable() { return this._hashTable; }
 
     //Builds a new dictionary.
     //The capacity a lower bound on the capacity is the number of elements that can be stored without rebalancing.
@@ -43,19 +44,21 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
     }
 
     //Enumerates the sequence
-    forEach(operation: (item?: KeyValuePair<TKey, TValue>) => void): void {
-        foreach<KeyValuePair<TKey, TValue>>(
-            <any>this,
-            pair => operation(pair)
-        );
+    foreach(operation: (item: KeyValuePair<TKey, TValue>, index?: number) => void | any): void {
+        foreach<KeyValuePair<TKey, TValue>>(this, operation);
+    }
+
+    //Enumerates the sequence
+    do(operation: (item: KeyValuePair<TKey, TValue>, index?: number) => void | any): this {
+        foreach<KeyValuePair<TKey, TValue>>(this, operation);
+        return this;
     }
 
     //Adds a key-value pair to the dictionary.
     //If it exists, the existing value will be overwritten.
     //The key can be null, but not undefined.
     add(key: TKey, value: TValue): Dictionary<TKey, TValue> {
-        Assert.isDefined(key, 'The key is null or undefined.');
-
+        ensure(key);
         var added = this.addWithoutRebalancing(this._hashTable, this._numberOfBuckets, {
             key: key,
             value: value
@@ -101,7 +104,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
     containsKey(key: TKey): boolean {
         var elements = this.getElements(key);
 
-        return u.isDefined(
+        return instanceIs.specified(
             this.getPair(
                 elements,
                 this._hashTable,
@@ -125,7 +128,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
 
     private getElements(key: TKey): KeyValuePair<TKey, TValue>[] {
         var index = this.getIndex(key);
-        return <KeyValuePair<TKey, TValue>[]>this._hashTable[index];
+        return this._hashTable[index] as KeyValuePair<TKey, TValue>[];
     }
 
     private getPair(
@@ -141,7 +144,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
         var current: KeyValuePair<TKey, TValue>;
         for (var i = 0, elementsLength = elements.length; i < elementsLength; i++) {
             current = elements[i];
-            if ((<any>current.key).equals(key))
+            if (current.key === key)
                 return current;
         }
 
@@ -194,7 +197,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
 
         for (var i = 0; i < currentNumberOfBuckets; i++) {
             elements = <KeyValuePair<TKey, TValue>[]>currentHashTable[i];
-            if (u.isDefined(elements)) {
+            if (instanceIs.specified(elements)) {
                 for (var j = 0, elementsLength = elements.length; j < elementsLength; j++) {
                     this.addWithoutRebalancing(nextHashTable, nextNumberOfBuckets, elements[j], false);
                 }
@@ -211,14 +214,14 @@ class DictionaryUtilities extends Object {
     static loadFactor = 2;
 
     constructor() {
-        Assert.staticClass();
+        ensure.staticClass();
         super();
     }
 
     //Gets the number of buckets for the nth reordering, always a prime number.
     static getNumberOfBuckets(numberOfRebalances: number): number {
         var result = numberOfBuckets[numberOfRebalances];
-        Assert.isDefined(result, 'The maximum size for a Dictionary has been exceeded.');
+        ensure(result, 'The maximum size for a Dictionary has been exceeded.');
 
         return result;
     }
@@ -233,32 +236,29 @@ class DictionaryUtilities extends Object {
                 return i;
         }
 
-        Assert.isInvalid('The capacity is too large for the dictionary.');
+        throw Error('The capacity is too large for the dictionary.');
         return -1;
     }
 }
 
 class DictionaryEnumerator<TKey, TValue>
     implements IEnumerator<KeyValuePair<TKey, TValue>> {
-
     private _index = -1;
     private _hashTable: IHashTable<TKey, TValue>;
     private _numberOfBuckets: number;
     private _bucketIndex: number;
     private _keys: string[];
-    private _elements: KeyValuePair<TKey, TValue>[] | null;
+    private _elements: KeyValuePair<TKey, TValue>[];
 
     constructor(dictionary: Dictionary<TKey, TValue>) {
-        Assert.isDefined(dictionary);
-        this._hashTable = (<any>dictionary)._hashTable;
+        this._hashTable = dictionary.hashTable;
         this._numberOfBuckets = (<any>dictionary)._numberOfBuckets;
         this._bucketIndex = 0;
         this._keys = Object.keys(this._hashTable);
-        this._elements = this._hashTable[this._keys[this._bucketIndex]];
+        this._elements = this._hashTable[this._keys[this._bucketIndex] as any];
     }
 
     get current(): KeyValuePair<TKey, TValue> {
-        Assert.isDefined(this._elements);
         if (this._elements !== null)
             return this._elements[this._index];
         else
@@ -272,12 +272,12 @@ class DictionaryEnumerator<TKey, TValue>
             keys = this._keys,
             hashTable = this._hashTable;
 
-        if (!u.isNullOrUndefined(elements)) {   
+        if (instanceIs.populatedArray(elements)) {   
             this._index++;
             if (this._index < elements.length)
                 return true;
 
-            this._elements = null;
+            this._elements = [];
             elements = this._elements;
         }
 
@@ -286,7 +286,7 @@ class DictionaryEnumerator<TKey, TValue>
 
         for (var i = this._bucketIndex + 1; i < numberOfBuckets; i++) {
             elements = hashTable[keys[i]];
-            if (u.isDefined(elements)) {
+            if (instanceIs.specified(elements)) {
                 this._elements = elements;
                 this._bucketIndex = i;
                 this._index = 0;
@@ -303,7 +303,6 @@ export class DictionaryKeyCollection<TKey, TValue> implements IEnumerable<TKey> 
     private _dictionary: Dictionary<TKey, TValue>;
 
     constructor(dictionary: Dictionary<TKey, TValue>) {
-        Assert.isDefined(dictionary);
         this._dictionary = dictionary;
     }
 
@@ -317,15 +316,18 @@ export class DictionaryKeyCollection<TKey, TValue> implements IEnumerable<TKey> 
 
     toArray(): TKey[] {
         const array: TKey[] = [];
-        this.forEach(key => array.push(key));
+        this.foreach(key => array.push(key));
         return array;
     }
 
-    forEach(operation: (item?: TKey | undefined) => void): void {
-        const enumerator = this.getEnumerator();
-        while (enumerator.moveNext()) {
-            operation(enumerator.current);
-        }
+    foreach(operation: (item: TKey, index?: number) => void | any): void {
+        foreach(this, operation);
+    }
+
+    do(operation: (item: TKey) => void | any): this
+    do(operation: (item: TKey, index?: number) => void | any): this {
+        foreach(this, operation);
+        return this;
     }
 
     count(): number {
@@ -338,12 +340,11 @@ export class DictionaryKeyEnumerator<TKey, TValue> implements IEnumerator<TKey> 
     private _dictionaryEnumerator: IEnumerator<KeyValuePair<TKey, TValue>>;
 
     constructor(dictionary: Dictionary<TKey, TValue>) {
-        Assert.isDefined(dictionary);
         this._dictionaryEnumerator = dictionary.getEnumerator();
     }
 
     get current(): TKey {
-        if (u.isNullOrUndefined(this._dictionaryEnumerator.current)) return null;
+        if (instanceIs.unspecified(this._dictionaryEnumerator.current)) return undefined as any;
         return this._dictionaryEnumerator.current.key;
     }
 
@@ -364,8 +365,7 @@ export class KeyValuePair<TKey, TValue> {
 
 //Provides a global loop function for all enumerables.
 //It returns the enumerable for chaining.
-export function foreach<T>(enumerable: IEnumerable<T>, operation: (item: T, index?: number) => void): IEnumerable<T> {
-
+export function foreach<T>(enumerable: IEnumerable<T>, operation: (item: T, index?: number) => void | any): void {
     var enumerator = enumerable.getEnumerator()
     var i = 0;
 
@@ -373,8 +373,6 @@ export function foreach<T>(enumerable: IEnumerable<T>, operation: (item: T, inde
         operation(enumerator.current, i)
         i = i + 1;
     }
-
-    return enumerable;
 }
 
 //The buckets numbers for the hashTable in DictionaryBase.
@@ -388,7 +386,6 @@ class _ArrayEnumerator<T>
     _array: T[];
 
     constructor(array: T[]) {
-        Assert.isDefined(array);
         this._array = array;
     }
 
@@ -416,7 +413,6 @@ export class Queryable<T> implements IQueryable<T> {
     _enumerable: IEnumerable<T>;
 
     constructor(enumerable: IEnumerable<T>) {
-        Assert.isDefined(enumerable);
         this._enumerable = enumerable;
     }
 
@@ -453,17 +449,20 @@ export class Queryable<T> implements IQueryable<T> {
         return result;
     }
 
-    forEach(operation: (item: T) => void): void;
-    forEach(operation: (item: T) => void): IQueryable<T>;
-    forEach(operation: Function): any {
+    foreach(operation: (item: T, index?: number) => void | any): void {
         var enumerator = this.getEnumerator(),
             current: T;
 
+        var index = 0;
         while (enumerator.moveNext()) {
             var current = enumerator.current;
-            operation.bind(current)(current);
+            operation.bind(current)(current, index);
+            index += 1;
         }
+    }
 
+    do(operation: (item: T, index?: number) => void | any): this {
+        this.foreach(operation);
         return this;
     }
 
@@ -492,7 +491,6 @@ export class Queryable<T> implements IQueryable<T> {
         selector: (item: T) => TSelected,
         comparison?: (first: TSelected, second: TSelected) => number
     ): IQueryable<T> {
-        Assert.isDefined(selector);
         var result = this.toArray();
         if (result.length === 0) return result.query();
     
@@ -524,15 +522,13 @@ export class Queryable<T> implements IQueryable<T> {
     //TODO: Make this more efficient.
     orderByDescending<TSelected>(selector: (item: T) => TSelected, comparison?: (first: TSelected, second: TSelected) => number): IQueryable<T> {
         var ordered = this.orderBy(selector, comparison);
-        return ordered.where(i => u.isDefined(i)).reverse()
-            .concat(ordered.where(i => !u.isDefined(i)));
+        return ordered.where(i => instanceIs.specified(i)).reverse()
+            .concat(ordered.where(i => instanceIs.unspecified(i)));
     }
 
     //Returns the accumulation of the elements in the sequence, starting with a seed.
     aggregate<TAccumulate>(accumulator: (first: TAccumulate, second: T) => TAccumulate, seed?: TAccumulate): TAccumulate {
-        Assert.isDefined(accumulator, 'No accumulator was specified.');
         var skipFirst = false;
-
         if (this.hasNone()){
             if (seed === undefined)
                 throw new Error('The sequence cannot be aggregated because it is empty.');
@@ -546,7 +542,7 @@ export class Queryable<T> implements IQueryable<T> {
         if (seed !== undefined) {
             var result: TAccumulate = seed
             var firstPass = true;
-            this.forEach(item => {
+            this.foreach(item => {
                 if (skipFirst && firstPass) {
                     firstPass = false;
                     return;
@@ -587,7 +583,7 @@ export class Queryable<T> implements IQueryable<T> {
             return secondValue;
         }, -Infinity);
 
-        if (u.isInfinity(result) &&
+        if (result.is.infinite &&
             this.hasNone(i => selector(i) === result)) {
             return null;
         }
@@ -610,7 +606,7 @@ export class Queryable<T> implements IQueryable<T> {
             return secondValue;
         }, Infinity);
 
-        if (u.isInfinity(result) &&
+        if (result.is.infinite() &&
             this.hasNone(i => selector(i) === result)) {
             return null;
         }
@@ -636,7 +632,7 @@ export class Queryable<T> implements IQueryable<T> {
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
-        Assert.isTrue(enumerator.moveNext(),
+        ensure.true(enumerator.moveNext(),
             'The sequence does not have a first element.');
 
         return enumerator.current;
@@ -672,11 +668,11 @@ export class Queryable<T> implements IQueryable<T> {
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
-        Assert.isTrue(enumerator.moveNext(),
+        ensure.true(enumerator.moveNext(),
             'The sequence does not have any matching elements.');
 
         var current = enumerator.current;
-        Assert.isFalse(enumerator.moveNext(),
+        ensure.false(enumerator.moveNext(),
             'The sequence has more than one matching element.');
 
         return current;
@@ -693,7 +689,7 @@ export class Queryable<T> implements IQueryable<T> {
             return null;
 
         var current = enumerator.current;
-        Assert.isFalse(enumerator.moveNext(),
+        ensure.false(enumerator.moveNext(),
             'The sequence has more than one matching element.');
 
         return current;
@@ -710,12 +706,10 @@ export class Queryable<T> implements IQueryable<T> {
     }
     //Returns the item at the specified index.
     at(index: number): T {
-        Assert.isTrue(u.isDefined(index) && index >= 0,
-            'The index must be a positive integer.');
+        ensure.true(index >= 0, 'The index must be a positive integer.');
 
         var rest = this.skip(index);
-        Assert.isTrue(rest.hasAny(),
-            'The index is out of range.');
+        ensure.true(rest.hasAny(), 'The index is out of range.');
 
         return rest.first();
     }
@@ -796,7 +790,7 @@ export class Queryable<T> implements IQueryable<T> {
     }
 
     private coalescePredicate(predicate?: (item: T) => boolean): (item: T) => boolean {
-        return u.coalesce(predicate, (item: T) => true);
+        return predicate ?? ((item: T) => true);
     }
 }
 
@@ -874,7 +868,7 @@ class SkipQueryable<T> extends Queryable<T> {
 
     constructor(enumerable: IEnumerable<T>, count: number) {
         super(enumerable);
-        Assert.isFalse(count < 0, 'The number of elements to skip must be greater than zero.');
+        ensure.false(count < 0, 'The number of elements to skip must be greater than zero.');
         this._count = count;
     }
 
@@ -901,7 +895,7 @@ class TakeQueryable<T> extends Queryable<T> {
 
     constructor(enumerable: IEnumerable<T>, count: number) {
         super(enumerable);
-        Assert.isFalse(count < 0, 'The number of elements to take must be greater than zero.');
+        ensure.false(count < 0, 'The number of elements to take must be greater than zero.');
         this._count = count;
     }
 
@@ -932,7 +926,7 @@ class ConcatQueryable<T> extends Queryable<T> {
 
     getEnumerator(): IEnumerator<T> {
         const enumerators = this._enumerables.query()
-            .where(e => u.isDefined(e))
+            .where(e => instanceIs.specified(e))
             .select(e => e.getEnumerator());
 
         return new ConcatQueryableEnumerator<T>(
@@ -953,7 +947,7 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
     }
 
     get current(): T {
-        Assert.isDefined(this._enumerator);
+        ensure(this._enumerator);
         if (this._enumerator !== null) {
             return this._enumerator.current;
         } else {
@@ -984,7 +978,7 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
 export class Enumerable {
 
     constructor() { 
-        Assert.staticClass();
+        ensure.staticClass();
     }
 
     static empty<T>(): IEnumerable<T> {
@@ -1018,9 +1012,9 @@ export class Enumerable {
         }
     
         // Assert conditions for increment
-        Assert.isFalse(increment === 0, 'The increment cannot be zero.');
-        Assert.isFalse(increment > 0 && start > finalEnd, 'Invalid range with positive increment.');
-        Assert.isFalse(increment < 0 && start < finalEnd, 'Invalid range with negative increment.');
+        ensure.false(increment === 0, 'The increment cannot be zero.');
+        ensure.false(increment > 0 && start > finalEnd, 'Invalid range with positive increment.');
+        ensure.false(increment < 0 && start < finalEnd, 'Invalid range with negative increment.');
     
         // Generate the range
         const result: number[] = [];
@@ -1031,7 +1025,7 @@ export class Enumerable {
         return result as IEnumerable<number>;
     }  
 
-    static forEach<T>(items: IEnumerable<T>, operation: (item?: T) => void) {
+    static forEach<T>(items: IEnumerable<T>, operation: (item: T) => void) {
         var enumerator = items.getEnumerator(),
             current: T;
 
@@ -1042,30 +1036,145 @@ export class Enumerable {
     }
 }
 
+export class ArrayEnumerator<T> extends Object implements IEnumerator<T> {
+
+    _index = -1;
+    _array: T[];
+
+    constructor(array: T[]) {
+        super();
+        ensure.array(array);
+        this._array = array;
+    }
+
+    get current(): T {
+        return this._array[this._index];
+    }
+
+    moveNext(): boolean {
+        this._index++;
+        return this._index < this._array.length;
+    }
+}
+
 function compareNumbers(first: number | null | undefined, second: number | null | undefined): number {
-    if (first == null && second == null) return 0;
-    if (first == null) return -1;
-    if (second == null) return 1;
-    return first - second;
+    if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
+    if (instanceIs.unspecified(first)) return -1;
+    if (instanceIs.unspecified(second)) return 1;
+    return (first as number) - (second as number);
 }
 
 function compareStrings(first: string | null | undefined, second: string | null | undefined): number {
-    if (first == null && second == null) return 0;
-    if (first == null) return -1;
-    if (second == null) return 1;
-    return first.localeCompare(second);
+    if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
+    if (instanceIs.unspecified(first)) return -1;
+    if (instanceIs.unspecified(second)) return 1;
+    return (first as string).localeCompare(second as string);
 }
 
 function compareBooleans(first: boolean | null | undefined, second: boolean | null | undefined): number {
-    if (first == null && second == null) return 0;
-    if (first == null) return -1;
-    if (second == null) return 1;
+    if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
+    if (instanceIs.unspecified(first)) return -1;
+    if (instanceIs.unspecified(second)) return 1;
     return first === second ? 0 : first ? 1 : -1;
 }
 
 function compareDates(first: Date | null | undefined, second: Date | null | undefined): number {
-    if (first == null && second == null) return 0;
-    if (first == null) return -1;
-    if (second == null) return 1;
-    return first.getTime() - second.getTime();
+    if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
+    if (instanceIs.unspecified(first)) return -1;
+    if (instanceIs.unspecified(second)) return 1;
+    return (first as Date).getTime() - (second as Date).getTime();
+}
+
+export class Hash {
+    /*  
+    Returns a numeric hash for a boolean value.
+    @param [key] {boolean} The value to hash
+    @return {number} 1 for true and 0 for false.
+    @remarks null checking is excluded for performance.
+    */
+    static forBoolean(key: boolean): number {
+        return +key;
+    }
+
+    /*  
+    Returns a numeric hash for a numeric value.
+    @param [key] {} The value to hash
+    @param [seed?] {number} A positive integer seed to generate the hash.
+    @return {number} 1 for true and 0 for false.
+    @remarks 
+        Null checking is excluded for performance.
+        The default seed is 37.
+    */
+    static forNumber(key: number, seed?: number): number {
+        return Hash.forString(key.toString(), seed);
+    }
+
+    /**
+     JavaScript Implementation of MurmurHash3 (r136) (as of May 20, 2011)
+    @author <a href="mailto:gary.court@gmail.com">Gary Court</a>
+    @see http://github.com/garycourt/murmurhash-js
+    @author <a href="mailto:aappleby@gmail.com">Austin Appleby</a>
+    @see http://sites.google.com/site/murmurhash/ 
+    @param [key] {string} The string to hash.
+    @param [seed?] {number} A positive integer seed to generate the hash.
+    @return {number} 32-bit positive integer hash 
+    @remarks 
+        Null checking is excluded for performance. 
+        The string must be ASCII only.
+        The default seed is 37.
+    */
+    static forString(key: string, seed?: number): number {
+        if (seed === undefined)
+            seed = 37;
+
+        var remainder, bytes, h1, h1b, c1, c1b, c2, c2b, k1, i;
+
+        remainder = key.length & 3; // key.length % 4
+        bytes = key.length - remainder;
+        h1 = seed;
+        c1 = 0xcc9e2d51;
+        c2 = 0x1b873593;
+        i = 0;
+
+        while (i < bytes) {
+            k1 =
+                ((key.charCodeAt(i) & 0xff)) |
+                ((key.charCodeAt(++i) & 0xff) << 8) |
+                ((key.charCodeAt(++i) & 0xff) << 16) |
+                ((key.charCodeAt(++i) & 0xff) << 24);
+            ++i;
+
+            k1 = ((((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16))) & 0xffffffff;
+            k1 = (k1 << 15) | (k1 >>> 17);
+            k1 = ((((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16))) & 0xffffffff;
+
+            h1 ^= k1;
+            h1 = (h1 << 13) | (h1 >>> 19);
+            h1b = ((((h1 & 0xffff) * 5) + ((((h1 >>> 16) * 5) & 0xffff) << 16))) & 0xffffffff;
+            h1 = (((h1b & 0xffff) + 0x6b64) + ((((h1b >>> 16) + 0xe654) & 0xffff) << 16));
+        }
+
+        k1 = 0;
+
+        switch (remainder) {
+            case 3: k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
+            case 2: k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
+            case 1: k1 ^= (key.charCodeAt(i) & 0xff);
+
+                k1 = (((k1 & 0xffff) * c1) + ((((k1 >>> 16) * c1) & 0xffff) << 16)) & 0xffffffff;
+                k1 = (k1 << 15) | (k1 >>> 17);
+                k1 = (((k1 & 0xffff) * c2) + ((((k1 >>> 16) * c2) & 0xffff) << 16)) & 0xffffffff;
+                h1 ^= k1;
+        }
+
+        h1 ^= key.length;
+
+        h1 ^= h1 >>> 16;
+        h1 = (((h1 & 0xffff) * 0x85ebca6b) + ((((h1 >>> 16) * 0x85ebca6b) & 0xffff) << 16)) & 0xffffffff;
+        h1 ^= h1 >>> 13;
+        h1 = ((((h1 & 0xffff) * 0xc2b2ae35) + ((((h1 >>> 16) * 0xc2b2ae35) & 0xffff) << 16))) & 0xffffffff;
+        h1 ^= h1 >>> 16;
+
+        return h1 >>> 0;
+    }
 }

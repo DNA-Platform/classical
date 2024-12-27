@@ -1,4 +1,4 @@
-import '../src/index';
+import '../src/classical';
 
 // Helper function to create a new array for testing
 function createTestArray(): any[] {
@@ -204,14 +204,14 @@ test('set should return the array for chaining', () => {
 // Tests for is method on Object prototype
 test('is should return true if the object is of the specified type', () => {
     const obj = {};
-    const actual = obj.is(Object);
+    const actual = obj.isType(Object);
     const expected = true;
     expect(actual).toBe(expected);
 });
 
 test('is should return false if the object is not of the specified type', () => {
     const obj = {};
-    const actual = obj.is(Array);
+    const actual = obj.isType(Array);
     const expected = false;
     expect(actual).toBe(expected);
 });
@@ -229,7 +229,7 @@ test('getEnumerator should return an enumerator for the array', () => {
 test('getEnumerator should iterate through the array', () => {
     const array = [1, 2, 3];
     const enumerator = array.getEnumerator();
-    let result = [];
+    let result: number[] = [];
     while (enumerator.moveNext()) {
         result.push(enumerator.current);
     }

@@ -1,12 +1,66 @@
-export { };
+import { Type, Environment } from "./reflection";
+import { Dictionary, Queryable } from "./collections";
+import { Ensure, Ensure, InstanceIs } from "./util"
+import { Lazy } from "./util";
 
+type GlobalType = Type;
+type GlobalEnvironment = Environment
+type GlobalDictionary<TKey, TValue> = Dictionary<TKey, TValue>;
+type GlobalQueryable<T> = Queryable<T>;
+type GlobaleAssert = Ensure;
+type GlobalEnsure = Ensure;
+type GlobalIs = InstanceIs;
+type GlobalLazy<T> = Lazy<T>;
+
+export { }
 declare global {
+   //Base types for the core type utilities
+   export function typeOf(ctor: Constructor): Type;
+   export function instanceOf(value: any): Type;
+   export type Constructor<T = any> = new (...args: any[]) => T;
+   export type Type = GlobalType;
+   export type Environment = GlobalEnvironment;
+   export type Dictionary<TKey, TValue> = GlobalDictionary<TKey, TValue>
+   export type Queryable<T> = GlobalQueryable<T>;
+   export type Lazy<T> = GlobalLazy<T>;
+   export var environment: Environment;
+   export var instanceIs: InstanceIs;
+   export var assert: Ensure;
+
+   function ensure<T>(value: T): asserts value is T;
+   function ensure<T>(value: T): asserts value is T;
+   function ensure<T>(value: T | undefined): asserts value is T;
+   function ensure<T>(value: T | null| undefined): asserts value is T;
+
+   function specified<T>(value: T, orThrow?: { orThrow: boolean | string }): value is T;
+   function specified<T>(value: T | null, orThrow?: { orThrow: boolean | string }): value is T;
+   function specified<T>(value: T | undefined, orThrow?: { orThrow: boolean | string }): value is T;
+   function specified<T>(value: T | null| undefined, orThrow?: { orThrow: boolean | string }): value is T;
+   function unspecified<T>(value: any, orThrow?: { orThrow: boolean | string }): value is null | undefined;
+
    //Adding additional members to the Object class to support basic functionality
    interface Object {
-      is(type: Function): boolean;
-      getType(): Type;
-      equals(other: any): boolean;
-      getHashCode(): number;
+      get type(): Type;
+      get hashCode(): number;
+      get is(): Is;
+   }
+
+   interface String {
+      get type(): Type;
+      get hashCode(): number;
+      get is(): Is;
+   }
+
+   interface Boolean {
+      get type(): Type;
+      get hashCode(): number;
+      get is(): Is;
+   }
+
+   interface Number {
+      get type(): Type;
+      get hashCode(): number;
+      get is(): Is;
    }
 
    //Declares that Array<T> has a remove method.
@@ -52,7 +106,10 @@ declare global {
       getEnumerator(): IEnumerator<T>;
 
       //Enumerates the sequence
-      forEach(operation: (item?: T) => void): void;
+      foreach(operation: (item: T, index?: number) => void | any): void;
+
+      //Enumerates the sequence
+      do(operation: (item: T, index?: number) => void | any): this;
 
       //Returns an IEnumerable implementation that is queryable.
       query(): IQueryable<T>;
@@ -123,9 +180,6 @@ declare global {
       are expected to have executed the query.
    */
    interface IQueryable<T> extends IEnumerable<T> {
-
-      //Iterates through the elements in the queried sequence.
-      forEach(operation: (item: T) => void): IQueryable<T>;
 
       //Casts the elements of the query to a new type.
       cast<TElement>(): IQueryable<TElement>;
@@ -230,9 +284,6 @@ declare global {
       //Counts the number of elements in a sequence.
       count(): number;
    }
-
-   //A typeOf operator that works on JavaScript objects
-   function typeOf(ctor: Function): Type
 
    /**
     * Defines options for including or excluding certain members when querying a type.

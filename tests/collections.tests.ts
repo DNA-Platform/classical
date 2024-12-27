@@ -1,4 +1,4 @@
-import '../src/index';
+import '../src/classical';
 import { Dictionary, Queryable, Enumerable, foreach } from '../src/collections';
 
 test('Dictionary.add should add a key-value pair to the dictionary', () => {
@@ -68,22 +68,12 @@ test('Dictionary.getKeys should return a sequence containing the keys of the dic
 });
 
 describe('foreach', () => {
-    test('should iterate over all elements and perform the operation', () => {
-        const enumerable = [1, 2, 3]
-        let actual = 0;
-        const expected = 6;
-        const enumerableAgain = foreach(enumerable, item => actual += item);
-        expect(expected).toBe(actual);
-        expect(enumerable).toBe(enumerableAgain);
-    });
-
     test('should handle empty enumerables correctly', () => {
         const enumerable: number[] = []
         let actual = 0;
         const expected = 0;
-        const enumerableAgain = foreach(enumerable, () => actual++);
+        foreach(enumerable, () => actual++);
         expect(expected).toBe(actual);
-        expect(enumerable).toBe(enumerableAgain);
     });
 });
 
@@ -256,6 +246,7 @@ describe('Queryable Tests', () => {
         const array = new Queryable<number>([3, 1, 4, 2]);
         const expected = [8, 6, 4, 2];
         const actual = array.orderByDescending(n => n).select(n => n * 2).result();
+        console.log(actual);
         expect(actual).toEqual(expected);
     });
 

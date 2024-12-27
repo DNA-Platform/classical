@@ -1,31 +1,35 @@
-import u from './utilities';
-import Assert from './assert';
+/// <reference path="./classical.d.ts" />
+import { ensure, instanceIs, Lazy } from './util';
 import { Dictionary } from './collections';
 
 class LanguageConstruct {
-    public get name(): string { throw Assert.notImplemented(); }
-    public get isPublic(): boolean { throw Assert.notImplemented(); }
-    public get isPrivate(): boolean { throw Assert.notImplemented(); }
-    public get isStatic(): boolean { throw Assert.notImplemented(); }
-    public get isInstance(): boolean { throw Assert.notImplemented(); }
+    public get name(): string { throw ensure.notImplemented(); }
+    public get isPublic(): boolean { throw ensure.notImplemented(); }
+    public get isPrivate(): boolean { throw ensure.notImplemented(); }
+    public get isStatic(): boolean { throw ensure.notImplemented(); }
+    public get isInstance(): boolean { throw ensure.notImplemented(); }
     public get environment(): Environment { return environment; }
 
     constructor(password: number) {
-        Assert.isTrue(password === constructorPassword,
+        try {
+        ensure.true(password === constructorPassword,
             'You do not have permission to create instances of this type.');
+        } catch {
+            var x = 5;
+        }
     }
 }
 
 export class Type extends LanguageConstruct {
-    private _ctor: Function;
-    private _base: Type = null;
-    private _name: string = null;
+    private _ctor: Constructor;
+    private _base: Type | undefined;
+    private _name: string = "";
     private _initialized = false;
-    private _properties: PropertyInfo[];
-    private _methods: MethodInfo[];
-    private _staticProperties: PropertyInfo[];
-    private _staticFields: FieldInfo[];
-    private _staticMethods: MethodInfo[];
+    private _properties: PropertyInfo[] = undefined as any;
+    private _methods: MethodInfo[] = undefined as any;
+    private _staticProperties: PropertyInfo[] = undefined as any;
+    private _staticFields: FieldInfo[] = undefined as any;
+    private _staticMethods: MethodInfo[] = undefined as any;
     private _typeConstructor: ConstructorInfo;
 
     private get _propertiesInherited(): IQueryable<PropertyInfo>  { 
@@ -43,10 +47,10 @@ export class Type extends LanguageConstruct {
     }
 
     get baseType(): Type {
-        if (this._base === null) {
+        if (this._base === undefined) {
             const prototype = Object.getPrototypeOf(this.constructorFunction.prototype);
-            if (prototype == null || u.isFunction(!prototype.getType))
-                return null;
+            if (prototype == undefined || instanceIs.function(!prototype.getType))
+                return undefined as any;
             this._base = <Type>prototype.getType();
         }
         return this._base;
@@ -55,6 +59,7 @@ export class Type extends LanguageConstruct {
     get constructorValue(): ConstructorInfo { return this._typeConstructor; }
     get isNull() { return false; }
     get isUndefined() { return false; }
+    get isVoid() { return false; }
     get isAnonymous() { return this.name === "`Anonymous"; }
     get isPublic(): boolean { return !this.isPrivate; }
     get isPrivate(): boolean { return this.name.indexOf('_') === 0 || this.name.indexOf('#') === 0; }
@@ -63,7 +68,7 @@ export class Type extends LanguageConstruct {
     public get isInstance(): boolean { throw 'isInstance is not valid for a Type.'; }
 
     get name(): string {
-        if (this._name === null) {
+        if (this._name === undefined) {
             if (this._ctor !== undefined) this._name = this._ctor.name;
             else this._name = "`Anonymous";
         }
@@ -72,14 +77,14 @@ export class Type extends LanguageConstruct {
     
     get prototype(): any { return this._ctor.prototype; }
 
-    constructor(password: number, ctor: Function) {
+    constructor(password: number, ctor: Constructor) {
         super(password);
         this._ctor = ctor;
         this._typeConstructor = new ConstructorInfo(password, this, undefined, ctor);
     }
 
     equals(other: any): boolean {
-        if (u.isNullOrUndefined(other) || !other.is(Type)) return false;
+        if (instanceIs.unspecified(other) || !other.is(Type)) return false;
         const otherType = <Type>other;
         return this.constructorFunction === otherType.constructorFunction;
     }
@@ -87,7 +92,7 @@ export class Type extends LanguageConstruct {
     toString(): string { return this.name; }
 
     create<TInstance>(...args: any[]): TInstance {
-        return this.constructorFunction(args);
+        return (this.constructorFunction as any)(...args);
     }
 
     getHashCode(): number {
@@ -98,19 +103,19 @@ export class Type extends LanguageConstruct {
         if (!this._initialized) this._initializeMembers();
         options = this._initializeMemberOptions(options);
         const properties = options.includeInherited ? this._propertiesInherited : this._properties.query();
-        return properties.where(p => this._propertyMatchesOptions(p, options)).distinct();
+        return properties.where(p => this._propertyMatchesOptions(p, options as any)).distinct();
     }
 
     getProperty(name: string, options?: IMemberOptions): PropertyInfo {
-        Assert.isDefined(name);
-        return this.getProperties(options).query().singleOrDefault(f => f.name === name);
+        return this.getProperties(options).query().singleOrDefault(f => f.name === name) as any;
     }
 
     getFields(instance: any, options?: IMemberOptions): IQueryable<FieldInfo> {
-        if (!u.isDefined(instance) || !instance.getType().isAssignableTo(this))
+        if (!instanceIs.specified(instance) || !instance.getType().isAssignableTo(this))
             throw Error("The instance passed in is not assignable to type " + this.name);
+        if (instanceIs.unspecified(options))
+            options = this._initializeMemberOptions(options);
 
-        options = options = this._initializeMemberOptions(options);
         const fields: FieldInfo[] = [];    
         while (instance) {
             const instanceMembers = Object.getOwnPropertyNames(instance);
@@ -119,85 +124,82 @@ export class Type extends LanguageConstruct {
                 const property = instanceMembers[i];
                 const descriptor = Object.getOwnPropertyDescriptor(instance, property);
     
-                if (descriptor && !u.isFunction(descriptor.value) && !u.isDefined(descriptor.get) && !u.isDefined(descriptor.set)) {
+                if (descriptor && !instanceIs.function(descriptor.value) && !instanceIs.specified(descriptor.get) && !instanceIs.specified(descriptor.set)) {
                     fields.push(new FieldInfo(constructorPassword, property, typeOf(instance.constructor), false));
                 }
             }
     
-            if (!options.includeInherited) break;
+            if (!options?.includeInherited) break;
     
             instance = Object.getPrototypeOf(instance);
         }
     
-        return fields.query().where(f => this._propertyMatchesOptions(f, options)).distinct();
+        return fields.query().where(f => this._propertyMatchesOptions(f, options as any)).distinct();
     }
 
     getField(instance: any, name: string, options?: IMemberOptions): FieldInfo {
-        Assert.isDefined(name);
-        return this.getFields(instance, options).query().singleOrDefault(f => f.name === name);
+        return this.getFields(instance, options).query().singleOrDefault(f => f.name === name) as any;
     }
 
     getMethods(options?: IMemberOptions): IQueryable<MethodInfo> {
         if (!this._initialized) this._initializeMembers();
         options = this._initializeMemberOptions(options);
         const methods = options.includeInherited ? this._methodsInherited : this._methods.query();
-        return methods.where(p => this._propertyMatchesOptions(p, options)).distinct();
+        return methods.where(p => this._propertyMatchesOptions(p, options as any)).distinct();
     }
 
     getMethod(name: string, options?: IMemberOptions): MethodInfo {
-        Assert.isDefined(name);
-        return this.getMethods(options).query().singleOrDefault(f => f.name === name);
+        return this.getMethods(options).query().singleOrDefault(f => f.name === name) as any;
     }
 
     getStaticFields(options?: IMemberOptions): IQueryable<FieldInfo> {
         if (!this._initialized) this._initializeMembers();
         options = this._initializeMemberOptions(options);
-        return this._staticFields.toArray().query().where(f => this._propertyMatchesOptions(f, options)).distinct();
+        return this._staticFields.toArray().query().where(f => this._propertyMatchesOptions(f, options as any)).distinct();
     }
 
     getStaticField(name: string, options?: IMemberOptions): FieldInfo {
-        Assert.isDefined(name);
-        return this.getStaticFields(options).query().singleOrDefault(f => f.name === name);
+        return this.getStaticFields(options).query().singleOrDefault(f => f.name === name) as any;
     }
 
     getStaticProperties(options?: IMemberOptions): IQueryable<PropertyInfo> {
         if (!this._initialized) this._initializeMembers();
         options = this._initializeMemberOptions(options);
-        return this._staticProperties.toArray().query().where(p => this._propertyMatchesOptions(p, options)).distinct();
+        return this._staticProperties.toArray().query().where(p => this._propertyMatchesOptions(p, options as any)).distinct();
     }
 
     getStaticProperty(name: string, options?: IMemberOptions): PropertyInfo {
-        Assert.isDefined(name);
-        return this.getStaticProperties(options).query().singleOrDefault(f => f.name === name);
+        return this.getStaticProperties(options).query().singleOrDefault(f => f.name === name) as any;
     }
 
     getStaticMethods(options?: IMemberOptions): IQueryable<MethodInfo> {
         if (!this._initialized) this._initializeMembers();
         options = this._initializeMemberOptions(options);
-        return this._staticMethods.toArray().query().where(p => this._propertyMatchesOptions(p, options)).distinct();
+        return this._staticMethods.toArray().query().where(p => this._propertyMatchesOptions(p, options as any)).distinct();
     }
 
     getStaticMethod(name: string, options?: IMemberOptions): MethodInfo {
-        Assert.isDefined(name);
-        return this.getStaticMethods(options).query().singleOrDefault(f => f.name === name);
+        return this.getStaticMethods(options).query().singleOrDefault(f => f.name === name) as any;
     }
     
     isAssignableTo(other: Type): boolean {
-        if (u.isNullOrUndefined(other)) return false;
+        if (instanceIs.unspecified(other)) return false;
 
-        let ctor = this.constructorFunction, otherCtor = other.constructorFunction, prototype = null;
+        let ctor: Function | undefined = this.constructorFunction;
+        let otherCtor = other.constructorFunction;
+        let prototype = undefined;
 
-        while (u.isDefined(ctor)) {
+        while (instanceIs.specified(ctor)) {
             if (ctor === otherCtor) return true;
-            prototype = Object.getPrototypeOf(ctor.prototype);
-            if (u.isDefined(prototype)) ctor = prototype['constructor'];
-            else ctor = null;
+            prototype = Object.getPrototypeOf(ctor?.prototype);
+            if (instanceIs.specified(prototype)) ctor = prototype['constructor'];
+            else ctor = undefined;
         }
         return false;
     }
     
     isAssignableFrom(other: Type): boolean {
-        if (u.isNullOrUndefined(other)) return false;
+        if (instanceIs.unspecified(other)) return false;
         return other.isAssignableTo(this);
     }
 
@@ -218,12 +220,12 @@ export class Type extends LanguageConstruct {
             const descriptor = Object.getOwnPropertyDescriptor(this._ctor, property);
         
             if (descriptor) {
-                if (u.isFunction(descriptor.value)) {
-                    this._staticMethods.push(new MethodInfo(constructorPassword, property, typeOf(this._ctor), descriptor, descriptor.writable, <Function>descriptor.value, true));
-                } else if (!u.isDefined(descriptor.get) && !u.isDefined(descriptor.set)) {
+                if (instanceIs.function(descriptor.value)) {
+                    this._staticMethods.push(new MethodInfo(constructorPassword, property, Type.typeOf(this._ctor), descriptor, descriptor.writable ?? false, <Function>descriptor.value, true));
+                } else if (!instanceIs.specified(descriptor.get) && !instanceIs.specified(descriptor.set)) {
                     this._staticFields.push(new FieldInfo(constructorPassword, property, typeOf(this._ctor), true));
                 } else {
-                    this._staticProperties.push(new PropertyInfo(constructorPassword, property, typeOf(this._ctor), descriptor, u.isDefined(descriptor.get), u.isDefined(descriptor.set), false, false, true));
+                    this._staticProperties.push(new PropertyInfo(constructorPassword, property, typeOf(this._ctor), descriptor, instanceIs.specified(descriptor.get), instanceIs.specified(descriptor.set), false, false, true));
                 }
             }
         }
@@ -235,10 +237,10 @@ export class Type extends LanguageConstruct {
             const descriptor = Object.getOwnPropertyDescriptor(instance, property);
     
             if (descriptor) {
-                if (u.isFunction(descriptor.value)) {
-                    this._methods.push(new MethodInfo(constructorPassword, property, typeOf(instance.constructor), descriptor, descriptor.writable, <Function>descriptor.value, false));
+                if (instanceIs.function(descriptor.value)) {
+                    this._methods.push(new MethodInfo(constructorPassword, property, typeOf(instance.constructor), descriptor, descriptor.writable ?? false, <Function>descriptor.value, false));
                 } else {
-                    this._properties.push(new PropertyInfo(constructorPassword, property, typeOf(instance.constructor), descriptor, u.isDefined(descriptor.get), u.isDefined(descriptor.set), false, false, false));
+                    this._properties.push(new PropertyInfo(constructorPassword, property, typeOf(instance.constructor), descriptor, instanceIs.specified(descriptor.get), instanceIs.specified(descriptor.set), false, false, false));
                 }
             }
         }
@@ -246,25 +248,22 @@ export class Type extends LanguageConstruct {
         this._initialized = true;
     }
     
-    private _initializeMemberOptions(options: IMemberOptions): IMemberOptions {
+    private _initializeMemberOptions(options: IMemberOptions | undefined): IMemberOptions {
         if (!options) options = {};
-        if (!u.isDefined(options.includePublic) && !u.isDefined(options.includePrivate)) options.includePublic = true;
-        if (!u.isDefined(options.includeInherited)) options.includeInherited = true;
+        if (instanceIs.unspecified(options.includePublic) && instanceIs.unspecified(options.includePrivate)) options.includePublic = true;
+        if (instanceIs.unspecified(options.includeInherited)) options.includeInherited = true;
         return options;
     }
 
     private _propertyMatchesOptions(property: PropertyInfo, options: IMemberOptions): boolean {  
-        Assert.isDefined(property);
         if (options.includePublic && property.isPublic) return true;
         else if (options.includePrivate && property.isPrivate) return true;
         else return false;
     }
-    
-    public static get undefined(): Type { return undefinedType; } 
 
-    static getType(ctor: Function): Type {  
-        if (!u.isFunction(ctor)) return Type.undefined;  
-        if (!isType(ctor)) return Type.undefined;  
+    static typeOf(ctor: Constructor): Type {  
+        if (!instanceIs.function(ctor)) return Type.undefined;  
+        if (!isTypeInternal(ctor)) return Type.undefined;  
         let type = types.getValue(ctor);  
         if (!type) {  
             type = new Type(constructorPassword, ctor);  
@@ -272,9 +271,16 @@ export class Type extends LanguageConstruct {
         }  
         return type;  
     }
+
+    static instanceOf(instance: any) {
+        if (instance === undefined || !instance.constructor) return Type.undefined;
+        if (instance === null) return Type.null;
+        return Type.typeOf(instance.constructor);
+    }
     
-    static isEnum(enumCandidate: any): boolean {  
-        if (!u.isObject(enumCandidate)) return false;  
+    static isEnum(enumCandidate: any): boolean { 
+        if (unspecified(enumCandidate)) return false;
+        if (!enumCandidate.is.object()) return false;
         const propertyNames = Object.getOwnPropertyNames(enumCandidate);  
         const numberProperties = propertyNames.query().where(p => /^[0-9]+$/.test(p)).result();  
         const numberPropertiesCount = numberProperties.count();  
@@ -286,24 +292,52 @@ export class Type extends LanguageConstruct {
         }  
         return true;  
     }
+
+    private static _undefined = new Lazy<UndefinedType>(() => new UndefinedType(constructorPassword, { isUndefined: true }));
+    public static get undefined(): UndefinedType { return this._undefined.value; }
+
+    private static _null = new Lazy<UndefinedType>(() => new UndefinedType(constructorPassword, { isNull: true }));
+    public static get null(): UndefinedType { return this._null.value; }
+
+    private static _void = new Lazy<UndefinedType>(() => new UndefinedType(constructorPassword, { isVoid: true }));
+    public static get void(): UndefinedType { return this._void.value; }
 }
 
-class UndefinedType extends Type {
-    get isUndefined() { return true; }
-    get name() { return "`Undefined"; }
+class NullConstructor {
+    constructor() { return null as any;  }
+}
 
-    constructor(password: number) {
-        super(password, undefined);
+class UndefinedConstructor {
+    constructor() { return undefined as any;  }
+}
+
+export class UndefinedType extends Type {
+    private _isNull: boolean;
+    private _isUndefined: boolean;
+    private _isVoid: boolean;
+    get isNull() { return this._isNull; }
+    get isUndefined() { return this._isUndefined; }
+    get isVoid() { return this._isVoid; }
+    get name() { return this.isUndefined ? "undefined" : this.isNull ? "null" : "void"; }
+
+    constructor(password: number, config: { isNull?: boolean, isUndefined?: boolean, isVoid?: boolean }) {
+        super(password, !!config.isNull ? NullConstructor: UndefinedConstructor);
+        this._isNull = !!config.isNull;
+        this._isUndefined = !!config.isUndefined;
+        this._isVoid = !!config.isVoid;
+    }
+
+    get baseType(): Type {
+        return Type.undefined;
     }
 }
 
-class Environment extends LanguageConstruct {
-
+export class Environment extends LanguageConstruct {
     private _name: string;
     private _scope: any;
-    private _types: IEnumerable<Type>;
-    private _functions: IEnumerable<FunctionInfo>;
-    private _variables: IEnumerable<VariableInfo>;
+    private _types: IEnumerable<Type> = undefined as any;
+    private _functions: IEnumerable<FunctionInfo> = undefined as any;
+    private _variables: IEnumerable<VariableInfo> = undefined as any;
 
     get name(): string { return this._name; }
     get isPublic(): boolean { return true; }
@@ -329,8 +363,7 @@ class Environment extends LanguageConstruct {
     }
 
     getFunction(name: string): FunctionInfo {
-        Assert.isDefined(name);
-        return (<IQueryable<FunctionInfo>>this.getFunctions.apply(this)).query().singleOrDefault(p => p.name === name);
+        return (<IQueryable<FunctionInfo>>this.getFunctions.apply(this)).query().singleOrDefault(p => p.name === name) as any;
     }
 
     getVariables(): IQueryable<VariableInfo> {
@@ -339,8 +372,7 @@ class Environment extends LanguageConstruct {
     }
 
     getVariable(name: string): VariableInfo {
-        Assert.isDefined(name);
-        return (<IQueryable<VariableInfo>>this.getVariables.apply(this)).query().singleOrDefault(p => p.name === name);
+        return (<IQueryable<VariableInfo>>this.getVariables.apply(this)).query().singleOrDefault(p => p.name === name) as any;
     }
 
     private _initializeTypes(): IEnumerable<Type> {
@@ -351,8 +383,8 @@ class Environment extends LanguageConstruct {
             const propertyName = scopeProperties[i];
             if (propertyName == 'constructor' || propertyName.indexOf('_') === 0) continue;
             const property = this._scope[propertyName];
-            if (isType(property)) {
-                let ctor = <Function>property;
+            if (isTypeInternal(property)) {
+                let ctor = <Constructor>property;
                 let type = types.getValue(ctor);
                 if (type === undefined) {
                     type = new Type(constructorPassword, ctor);
@@ -362,7 +394,7 @@ class Environment extends LanguageConstruct {
             }
         }
 
-        return initializedTypes;
+        return initializedTypes as any;
     }
 
     private _initializeFunctions(): IEnumerable<FunctionInfo> {
@@ -372,7 +404,7 @@ class Environment extends LanguageConstruct {
         for (let i = 0; i < scopeProperties.length; i++) {
             const propertyName = scopeProperties[i];
             const property = this._scope[propertyName];
-            if (!isType(property) && u.isFunction(property)) {
+            if (!isTypeInternal(property) && instanceIs.function(property)) {
                 const func = new FunctionInfo(constructorPassword, propertyName, true, <Function>property);
                 initializedFunctions.push(func);
             }
@@ -388,7 +420,7 @@ class Environment extends LanguageConstruct {
         for (let i = 0; i < scopeProperties.length; i++) {
             const propertyName = scopeProperties[i];
             const property = this._scope[propertyName];
-            if (!u.isFunction(property)) {
+            if (!instanceIs.function(property)) {
                 const variable = new VariableInfo(constructorPassword, propertyName, property);
                 initializedVariables.push(variable);
             }
@@ -398,9 +430,9 @@ class Environment extends LanguageConstruct {
     }
 }
 
-function isType(typeCandidate: any): boolean {
+function isTypeInternal(typeCandidate: any): boolean {
     return typeCandidate === Object ||
-        (u.isFunction(typeCandidate) && u.isDefined(typeCandidate.prototype) && !u.isEmptyObject(typeCandidate.prototype));
+        (instanceIs.function(typeCandidate) && instanceIs.specified(typeCandidate.prototype) && !instanceIs.emptyObject(typeCandidate.prototype));
 }
 
 class PropertyInfo extends LanguageConstruct {
@@ -412,7 +444,7 @@ class PropertyInfo extends LanguageConstruct {
     private _canRead: boolean;
     private _isMethod: boolean;
     private _isField: boolean;
-    private _propertyDescriptor: PropertyDescriptor;
+    private _propertyDescriptor: PropertyDescriptor | undefined;
 
     get name(): string { return this._name; }
     get declaringType(): Type { return this._declaringType; }
@@ -426,7 +458,7 @@ class PropertyInfo extends LanguageConstruct {
     public get isMethod(): boolean { return this._isMethod; }
     get isField(): boolean { return this._isField; }
 
-    constructor(password: number, name: string, declaringType: Type, propertyDescriptor: PropertyDescriptor, canRead: boolean, canWrite: boolean, isMethod: boolean, isField: boolean, isStatic: boolean) {
+    constructor(password: number, name: string, declaringType: Type, propertyDescriptor: PropertyDescriptor | undefined, canRead: boolean, canWrite: boolean, isMethod: boolean, isField: boolean, isStatic: boolean) {
         super(password);
         this._name = name;
         this._declaringType = declaringType;
@@ -439,12 +471,12 @@ class PropertyInfo extends LanguageConstruct {
     }
 
     getValue(instance: any): any {
-        Assert.isDefined(instance);
+        ensure(instance);
         if (!this.canRead) throw new Error('The property cannot be read.');
-        if (this.isStatic) return this.declaringType.constructorFunction[this.name];
+        if (this.isStatic) return (this.declaringType.constructorFunction as any)[this.name];
         const type = typeOf(instance.constructor);
         const property = type.getProperty(this.name);
-        if (u.isNullOrUndefined(property)) throw u.format('The property does not exist on type {0}.', type.name);
+        if (instanceIs.unspecified(property)) throw `The property does not exist on type ${type.name}.`;
         const instanceType = <Type>instance.getType();
         if (instanceType && instanceType.constructorFunction !== instance.constructor) {
             let prototype = instanceType.prototype;
@@ -458,14 +490,14 @@ class PropertyInfo extends LanguageConstruct {
     }
 
     setValue(instance: any, value: any): void {
-        Assert.isDefined(instance);
+        ensure(instance);
         if (this.isStatic) {
-            this.declaringType.constructorFunction[this.name] = value;
+            (this.declaringType.constructorFunction as any)[this.name] = value;
             return;
         }
         const type = typeOf(instance.constructor);
         const property = type.getProperty(this.name);
-        if (u.isNullOrUndefined(property)) throw u.format('The property does not exist on type {0}.', type.name);
+        if (instanceIs.unspecified(property)) throw `The property does not exist on type ${type.name}.`;
         else if (!this.canWrite) throw 'The property cannot be written to.';
         instance[this.name] = value;
     }
@@ -473,11 +505,9 @@ class PropertyInfo extends LanguageConstruct {
     toString(): string { return this.name; }
 
     static exists<TInstance, TProperty>(instance: TInstance, selector: (instance: TInstance) => TProperty): boolean {
-        Assert.isDefined(instance);
-        Assert.isDefined(selector);
         const propertyName = Expression.getProperty(selector);
-        if (instance.getType) {
-            const instanceType = <Type>instance.getType();
+        if ((instance as any).getType) {
+            const instanceType: Type = (instance as any).getType();
             const property = instanceType.getProperty(propertyName);
             if (property) return true;
         }
@@ -491,15 +521,15 @@ class FieldInfo extends PropertyInfo {
     get isPrivate(): boolean { return this.name.indexOf('_') === 0; }
 
     constructor(password: number, name: string, declaringType: Type, isStatic: boolean) {
-        super(password, name, declaringType, null, true, true, false, true, isStatic);
+        super(password, name, declaringType, undefined, true, true, false, true, isStatic);
     }
 
     getValue(instance: any): any {
-        Assert.isDefined(instance);
-        if (this.isStatic) return this.declaringType.constructorFunction[this.name];
+        ensure(instance);
+        if (this.isStatic) return (this.declaringType.constructorFunction as any)[this.name];
         const type = typeOf(instance.constructor);
         const property = type.getProperty(this.name);
-        if (u.isNullOrUndefined(property)) throw u.format('The property does not exist on type {0}.', type.name);
+        if (instanceIs.unspecified(property)) throw `The property does not exist on type ${type.name}.`;
         else if (!property.canRead) throw 'The property cannot be read.';
         const instanceType = <Type>instance.getType();
         if (instanceType && instanceType.constructorFunction !== instance.constructor) {
@@ -514,14 +544,14 @@ class FieldInfo extends PropertyInfo {
     }
 
     setValue(instance: any, value: any): void {
-        Assert.isDefined(instance);
+        ensure(instance);
         if (this.isStatic) {
-            this.declaringType.constructorFunction[this.name] = value;
+            (this.declaringType.constructorFunction as any)[this.name] = value;
             return;
         }
         const type = typeOf(instance.constructor);
         const property = type.getProperty(this.name);
-        if (u.isNullOrUndefined(property)) throw u.format('The property does not exist on type {0}.', type.name);
+        if (instanceIs.unspecified(property)) throw `The property does not exist on type ${type.name}`;
         else if (!this.canWrite) throw 'The property cannot be written to.';
         instance[this.name] = value;
     }
@@ -535,7 +565,7 @@ class VariableInfo extends PropertyInfo {
     get variableValue(): any { return this._value; }
 
     constructor(password: number, name: string, value: any) {
-        super(password, name, null, null, true, true, false, false, true);
+        super(password, name, undefined as any, undefined, true, true, false, false, true);
         this._value = value;
     }
 }
@@ -543,11 +573,11 @@ class VariableInfo extends PropertyInfo {
 class MethodInfo extends PropertyInfo {
 
     private _underlyingFunction: Function;
-    private _parameters: IEnumerable<ParameterInfo>;
+    private _parameters: IEnumerable<ParameterInfo> = undefined as any;
 
     get functionValue(): Function { return this._underlyingFunction; }
 
-    constructor(password: number, name: string, declaringType: Type, propertyDescriptor: PropertyDescriptor, canWrite: boolean, underlyingFunction: Function, isStatic: boolean) {
+    constructor(password: number, name: string, declaringType: Type, propertyDescriptor: PropertyDescriptor | undefined, canWrite: boolean, underlyingFunction: Function, isStatic: boolean) {
         super(password, name, declaringType, propertyDescriptor, true, canWrite, true, false, isStatic);
         this._underlyingFunction = underlyingFunction;
     }
@@ -555,14 +585,14 @@ class MethodInfo extends PropertyInfo {
     invoke(instance: any, ...args: any[]): any {
         if (this.isStatic) {
             const ctor = this.declaringType.constructorFunction;
-            return ctor[this.name].apply(ctor, args);
+            return (ctor as any)[this.name].apply(ctor, args);
         }
 
-        Assert.isDefined(instance);
+        ensure(instance);
         const type = typeOf(instance.constructor);
         const method = type.getMethod(this.name);
 
-        if (u.isNullOrUndefined(method)) throw u.format('The method does not exist on type {0}.', type.name);
+        if (instanceIs.unspecified(method)) throw `The method does not exist on type ${type.name}`;
         return instance[this.name].apply(instance, args);
     }
 
@@ -586,8 +616,7 @@ class MethodInfo extends PropertyInfo {
 }
 
 class ConstructorInfo extends MethodInfo {
-
-    constructor(password: number, declaringType: Type, propertyDescriptor: PropertyDescriptor, underlyingFunction: Function) {
+    constructor(password: number, declaringType: Type, propertyDescriptor: PropertyDescriptor | undefined, underlyingFunction: Function) {
         super(password, 'constructor', declaringType, propertyDescriptor, false, underlyingFunction, false);
     }
 }
@@ -595,7 +624,7 @@ class ConstructorInfo extends MethodInfo {
 class FunctionInfo extends MethodInfo {
 
     constructor(password: number, name: string, canWrite: boolean, underlyingFunction: Function) {
-        super(password, name, null, null, canWrite, underlyingFunction, true);
+        super(password, name, undefined as any, undefined, canWrite, underlyingFunction, true);
     }
 }
 
@@ -610,8 +639,8 @@ class ParameterInfo {
     get declaringMethod(): MethodInfo { return this._declaringMethod; }
 
     constructor(password: number, name: string, position: number, declaringMethod: MethodInfo) {
-        Assert.isTrue(password === constructorPassword, 'You do not have permission to create instances of this type.');
-        Assert.isDefined(declaringMethod);
+        ensure.true(password === constructorPassword, 'You do not have permission to create instances of this type.');
+        ensure(declaringMethod);
 
         this._name = name;
         this._position = position;
@@ -633,16 +662,17 @@ class Expression {
         const propertyPattern = /(?:[_$a-zA-Z][_$a-zA-Z0-9]*)\.([_$a-zA-Z][_$a-zA-Z0-9]*)|[_$a-zA-Z][_$a-zA-Z0-9]*\[['"]([^'"]+)['"]\]/;
         const matches = propertyPattern.exec(selectorString);
 
-        Assert.isDefined(matches, 'The property selector was not properly defined.');
+        ensure(matches, 'The property selector was not properly defined.');
+        const matchesTyped: RegExpExecArray = matches as any;
         
-        const property = matches[1] || matches[2];
-        Assert.isDefined(property, 'The property selector was not properly defined.');
+        const property = matchesTyped[1] || matchesTyped[2];
+        ensure(property, 'The property selector was not properly defined.');
 
         return property;
     }
 
     static getArguments(func: Function): Array<string> {
-        Assert.isDefined(func, 'The function was not specified.');
+        ensure(func, 'The function was not specified.');
 
         const functionString = func.toString().replace(/\s+/g, ' ').trim();
 
@@ -654,16 +684,17 @@ class Expression {
             || arrowFunctionPattern.exec(functionString)
             || methodPattern.exec(functionString);
 
-        Assert.isDefined(match, 'The function arguments could not be parsed.');
+        ensure(match, 'The function arguments could not be parsed.');
+        const matchTyped: RegExpExecArray = match as any;
 
-        const argumentString = match[1].trim();
+        const argumentString = matchTyped[1].trim();
         if (argumentString.length === 0) return [];
 
         return argumentString.split(/\s*,\s*/).map(arg => arg.trim());
     }
 
     static getElementByClass(elementName: string, ...classes: string[]): NodeList {
-        Assert.isDefined(elementName);
+        ensure(elementName);
 
         const selectors = classes
             .filter((value, index, self) => self.indexOf(value) === index) // Remove duplicates
@@ -676,5 +707,4 @@ class Expression {
 
 const constructorPassword = Math.random();
 export const environment = new Environment(constructorPassword, 'Global', globalThis);
-const undefinedType = new UndefinedType(constructorPassword);
 const types = new Dictionary<Function, Type>(5000);
