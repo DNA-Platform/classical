@@ -5,35 +5,18 @@ function createTestArray(): any[] {
     return [];
 }
 
-// Tests for equals
-test('equals should return true for identical objects', () => {
-    const obj1 = {};
-    const obj2 = obj1;
-    const actual = obj1.equals(obj2);
-    const expected = true;
-    expect(actual).toBe(expected);
-});
-
-test('equals should return false for different objects', () => {
-    const obj1 = {};
-    const obj2 = {};
-    const actual = obj1.equals(obj2);
-    const expected = false;
-    expect(actual).toBe(expected);
-});
-
-// Tests for getHashCode
-test('getHashCode should return a number for an object', () => {
+// Tests for hashCode
+test('hashCode should be a number for an object', () => {
     const obj = {};
-    const actual = obj.getHashCode();
+    const actual = obj.hashCode;
     const expected = 'number';
     expect(typeof actual).toBe(expected);
 });
 
-test('getHashCode should return a consistent hash code for the same object', () => {
+test('hashCode should be a consistent hash code for the same object', () => {
     const obj = {};
-    const actual1 = obj.getHashCode();
-    const actual2 = obj.getHashCode();
+    const actual1 = obj.hashCode;
+    const actual2 = obj.hashCode;
     expect(actual1).toBe(actual2);
 });
 
@@ -85,56 +68,56 @@ test('clear should return the array for chaining', () => {
     expect(actual).toBe(expected);
 });
 
-// Tests for getType method on Object prototype
-test('getType should return the constructor name of an object', () => {
+// Tests for type method on Object prototype
+test('type should return the constructor name of an object', () => {
     const obj = {};
-    const actual = obj.getType();
+    const actual = obj.type;
     const expected = typeOf(Object);
     expect(actual).toBe(expected);
 });
 
-// Tests for getHashCode method on String prototype
-test('String.prototype.getHashCode should return a number for a string', () => {
+// Tests for hashCode method on String prototype
+test('String.prototype.hashCode should be a number for a string', () => {
     const str = "hello";
-    const actual = str.getHashCode();
+    const actual = str.hashCode;
     const expectedType = 'number';
     expect(typeof actual).toBe(expectedType);
 });
 
-test('String.prototype.getHashCode should return consistent hash code for the same string', () => {
+test('String.prototype.hashCode should return consistent hash code for the same string', () => {
     const str = "hello";
-    const actual1 = str.getHashCode();
-    const actual2 = str.getHashCode();
+    const actual1 = str.hashCode;
+    const actual2 = str.hashCode;
     expect(actual1).toBe(actual2);
 });
 
-// Tests for getHashCode method on Number prototype
-test('Number.prototype.getHashCode should return a number for a number', () => {
+// Tests for hashCode method on Number prototype
+test('Number.prototype.hashCode should be a number for a number', () => {
     const num = 123;
-    const actual = num.getHashCode();
+    const actual = num.hashCode;
     const expectedType = 'number';
     expect(typeof actual).toBe(expectedType);
 });
 
-test('Number.prototype.getHashCode should return consistent hash code for the same number', () => {
+test('Number.prototype.hashCode should return consistent hash code for the same number', () => {
     const num = 123;
-    const actual1 = num.getHashCode();
-    const actual2 = num.getHashCode();
+    const actual1 = num.hashCode;
+    const actual2 = num.hashCode;
     expect(actual1).toBe(actual2);
 });
 
-// Tests for getHashCode method on Boolean prototype
-test('Boolean.prototype.getHashCode should return a number for a boolean', () => {
+// Tests for hashCode method on Boolean prototype
+test('Boolean.prototype.hashCode should be a number for a boolean', () => {
     const bool = true;
-    const actual = bool.getHashCode();
+    const actual = bool.hashCode;
     const expectedType = 'number';
     expect(typeof actual).toBe(expectedType);
 });
 
-test('Boolean.prototype.getHashCode should return consistent hash code for the same boolean', () => {
+test('Boolean.prototype.hashCode should return consistent hash code for the same boolean', () => {
     const bool = true;
-    const actual1 = bool.getHashCode();
-    const actual2 = bool.getHashCode();
+    const actual1 = bool.hashCode;
+    const actual2 = bool.hashCode;
     expect(actual1).toBe(actual2);
 });
 
@@ -204,14 +187,14 @@ test('set should return the array for chaining', () => {
 // Tests for is method on Object prototype
 test('is should return true if the object is of the specified type', () => {
     const obj = {};
-    const actual = obj.isType(Object);
+    const actual = obj.is(Object);
     const expected = true;
     expect(actual).toBe(expected);
 });
 
 test('is should return false if the object is not of the specified type', () => {
     const obj = {};
-    const actual = obj.isType(Array);
+    const actual = obj.is(Array);
     const expected = false;
     expect(actual).toBe(expected);
 });

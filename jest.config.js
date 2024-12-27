@@ -2,6 +2,15 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
 
+  // Add this globals section:
+  globals: {
+    'ts-jest': {
+      tsconfig: './tsconfig.json'  // Point to your main tsconfig
+      // Or if you want a separate test config:
+      // tsconfig: './tsconfig.test.json'
+    }
+  },
+
   // Match test files
   testMatch: ['<rootDir>/tests/**/*.tests.ts'],
 

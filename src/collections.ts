@@ -1,12 +1,12 @@
 /// <reference path="./classical.d.ts" />
-import { ensure, instanceIs, Lazy } from './util';
+import { mustBe, instanceIs, Lazy } from './util';
 
 export interface IHashTable<TKey, TValue> {
     [key: string]: KeyValuePair<TKey, TValue>[];
 }
 
 //A dictionary is a mapping between unique keys and arbitrary values.
-//Keys must implement getHashCode and equals from the IObject interface.
+//Keys must implement hashCode and equals from the Object interface.
 export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, TValue>> {
     private _hashTable: IHashTable<TKey, TValue> = {};
     private _bucketIndex: number;
@@ -56,9 +56,9 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
 
     //Adds a key-value pair to the dictionary.
     //If it exists, the existing value will be overwritten.
-    //The key can be null, but not undefined.
+    //The key can be undefined, but not undefined.
     add(key: TKey, value: TValue): Dictionary<TKey, TValue> {
-        ensure(key);
+        mustBe(key);
         var added = this.addWithoutRebalancing(this._hashTable, this._numberOfBuckets, {
             key: key,
             value: value
@@ -79,25 +79,25 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
                 this._numberOfBuckets,
                 key);
 
-        if (pair !== null)
+        if (pair !== undefined)
             elements.remove(pair);
 
         return this;
     }
 
-    //Returns the value of the key if it exists; null otherwise.
-    getValue(key: TKey): TValue | null {
+    //Returns the value of the key if it exists; undefined otherwise.
+    getValue(key: TKey): TValue | undefined {
         var elements = this.getElements(key);
         if (elements === undefined)
-            return null;
+            return undefined;
 
         for (var i = 0, elementsLength = elements.length; i < elementsLength; i++) {
             var pair = elements[i];
-            if ((<any>pair.key).equals(key))
+            if (pair.key === key)
                 return pair.value;
         }
 
-        return null;
+        return undefined;
     }
 
     //Returns true if the dictionary contains the specified key; False otherwise.
@@ -119,11 +119,11 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
 
     //Returns a sequence containing the keys of the dictionary.
     getKeys(): IEnumerable<TKey> {
-        return <IEnumerable<TKey>><any>(new DictionaryKeyCollection<TKey, TValue>(this));
+        return new DictionaryKeyCollection<TKey, TValue>(this);
     }
 
     private getIndex(key: TKey): number {
-        return (<any>key).getHashCode() % this._numberOfBuckets;
+        return (key as any).hashCode % this._numberOfBuckets;
     }
 
     private getElements(key: TKey): KeyValuePair<TKey, TValue>[] {
@@ -136,10 +136,10 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
         hashTable: IHashTable<TKey, TValue>,
         numberOfBuckets: number,
         key: TKey):
-        KeyValuePair<TKey, TValue> | null {
+        KeyValuePair<TKey, TValue> | undefined {
 
         if (elements === undefined)
-            return null;
+            return undefined;
 
         var current: KeyValuePair<TKey, TValue>;
         for (var i = 0, elementsLength = elements.length; i < elementsLength; i++) {
@@ -148,7 +148,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
                 return current;
         }
 
-        return null;
+        return undefined;
     }
 
     private addWithoutRebalancing(
@@ -157,7 +157,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
         pair: KeyValuePair<TKey, TValue>,
         checkForExistance: boolean = true): boolean {
 
-        var keyHashCode = (<any>pair.key).getHashCode() % numberOfBuckets;
+        var keyHashCode = (<any>pair.key).hashCode % numberOfBuckets;
         var elements = hashTable[keyHashCode];
         if (elements === undefined) {
             elements = [];
@@ -171,7 +171,7 @@ export class Dictionary<TKey, TValue> implements IEnumerable<KeyValuePair<TKey, 
                 numberOfBuckets,
                 pair.key);
 
-            if (foundPair !== null) {
+            if (foundPair !== undefined) {
                 foundPair.value = pair.value;
                 return false;
             }
@@ -214,14 +214,14 @@ class DictionaryUtilities extends Object {
     static loadFactor = 2;
 
     constructor() {
-        ensure.staticClass();
+        mustBe.staticClass();
         super();
     }
 
     //Gets the number of buckets for the nth reordering, always a prime number.
     static getNumberOfBuckets(numberOfRebalances: number): number {
         var result = numberOfBuckets[numberOfRebalances];
-        ensure(result, 'The maximum size for a Dictionary has been exceeded.');
+        mustBe(result, 'The maximum size for a Dictionary has been exceeded.');
 
         return result;
     }
@@ -259,7 +259,7 @@ class DictionaryEnumerator<TKey, TValue>
     }
 
     get current(): KeyValuePair<TKey, TValue> {
-        if (this._elements !== null)
+        if (this._elements !== undefined)
             return this._elements[this._index];
         else
             throw new Error();
@@ -570,9 +570,9 @@ export class Queryable<T> implements IQueryable<T> {
 
     //Returns the max of the values in the array.
     //If the array is empty, undefined is returned.
-    max(selector?: (item: T) => number): number | null {
+    max(selector?: (item: T) => number): number | undefined {
         if (this.hasNone())
-            return null;
+            return undefined;
         if (!selector)
             selector = item => <number><any>item;
 
@@ -583,9 +583,8 @@ export class Queryable<T> implements IQueryable<T> {
             return secondValue;
         }, -Infinity);
 
-        if (result.is.infinite &&
-            this.hasNone(i => selector(i) === result)) {
-            return null;
+        if (result.is.infinite && this.hasNone(i => selector(i) === result)) {
+            return undefined;
         }
 
         return result;
@@ -593,9 +592,9 @@ export class Queryable<T> implements IQueryable<T> {
 
     //Sums the selected values from the sequence.
     //If the array is empty, undefined is returned.
-    min(selector?: (item: T) => number): number | null {
+    min(selector?: (item: T) => number): number | undefined {
         if (this.hasNone())
-            return null;
+            return undefined;
         if (!selector)
             selector = item => <number><any>item;
 
@@ -606,9 +605,8 @@ export class Queryable<T> implements IQueryable<T> {
             return secondValue;
         }, Infinity);
 
-        if (result.is.infinite() &&
-            this.hasNone(i => selector(i) === result)) {
-            return null;
+        if (result.is.infinite && this.hasNone(i => selector(i) === result)) {
+            return undefined;
         }
 
         return result;
@@ -632,20 +630,20 @@ export class Queryable<T> implements IQueryable<T> {
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
-        ensure.true(enumerator.moveNext(),
+        mustBe.true(enumerator.moveNext(),
             'The sequence does not have a first element.');
 
         return enumerator.current;
     }
 
-    //Returns the first element satisfying the predicate, or null if empty.
-    firstOrDefault(predicate?: (item: T) => boolean): T | null {
+    //Returns the first element satisfying the predicate, or undefined if empty.
+    firstOrDefault(predicate?: (item: T) => boolean): T | undefined {
         predicate = this.coalescePredicate(predicate);
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
         if (!enumerator.moveNext())
-            return null;
+            return undefined;
 
         return enumerator.current;
     }
@@ -656,8 +654,8 @@ export class Queryable<T> implements IQueryable<T> {
         return this.reverse().first(predicate);
     }
 
-    //Returns the last element satisfying the predicate, or null if empty.
-    lastOrDefault(predicate?: (item: T) => boolean): T | null {
+    //Returns the last element satisfying the predicate, or undefined if empty.
+    lastOrDefault(predicate?: (item: T) => boolean): T | undefined {
         return this.reverse().firstOrDefault(predicate);
     }
 
@@ -668,28 +666,28 @@ export class Queryable<T> implements IQueryable<T> {
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
-        ensure.true(enumerator.moveNext(),
+        mustBe.true(enumerator.moveNext(),
             'The sequence does not have any matching elements.');
 
         var current = enumerator.current;
-        ensure.false(enumerator.moveNext(),
+        mustBe.false(enumerator.moveNext(),
             'The sequence has more than one matching element.');
 
         return current;
     }
 
-    //Returns the only element satisfying the predicate, or null if empty.
+    //Returns the only element satisfying the predicate, or undefined if empty.
     //Throws an exception if more then one satisfy the predicate.
-    singleOrDefault(predicate?: (item: T) => boolean): T | null {
+    singleOrDefault(predicate?: (item: T) => boolean): T | undefined {
         predicate = this.coalescePredicate(predicate);
         var result = this.where(predicate),
             enumerator = result.getEnumerator();
 
         if (!enumerator.moveNext())
-            return null;
+            return undefined;
 
         var current = enumerator.current;
-        ensure.false(enumerator.moveNext(),
+        mustBe.false(enumerator.moveNext(),
             'The sequence has more than one matching element.');
 
         return current;
@@ -706,10 +704,10 @@ export class Queryable<T> implements IQueryable<T> {
     }
     //Returns the item at the specified index.
     at(index: number): T {
-        ensure.true(index >= 0, 'The index must be a positive integer.');
+        mustBe.true(index >= 0, 'The index must be a positive integer.');
 
         var rest = this.skip(index);
-        ensure.true(rest.hasAny(), 'The index is out of range.');
+        mustBe.true(rest.hasAny(), 'The index is out of range.');
 
         return rest.first();
     }
@@ -868,7 +866,7 @@ class SkipQueryable<T> extends Queryable<T> {
 
     constructor(enumerable: IEnumerable<T>, count: number) {
         super(enumerable);
-        ensure.false(count < 0, 'The number of elements to skip must be greater than zero.');
+        mustBe.false(count < 0, 'The number of elements to skip must be greater than zero.');
         this._count = count;
     }
 
@@ -895,7 +893,7 @@ class TakeQueryable<T> extends Queryable<T> {
 
     constructor(enumerable: IEnumerable<T>, count: number) {
         super(enumerable);
-        ensure.false(count < 0, 'The number of elements to take must be greater than zero.');
+        mustBe.false(count < 0, 'The number of elements to take must be greater than zero.');
         this._count = count;
     }
 
@@ -936,7 +934,7 @@ class ConcatQueryable<T> extends Queryable<T> {
 }
 
 class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
-    private _enumerator: IEnumerator<T> | null = null;
+    private _enumerator: IEnumerator<T> | undefined = undefined;
     private _outerEnumerator: IEnumerator<IEnumerator<T>>;
 
     constructor(enumerators: IQueryable<IEnumerator<T>>) {
@@ -947,8 +945,8 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
     }
 
     get current(): T {
-        ensure(this._enumerator);
-        if (this._enumerator !== null) {
+        mustBe(this._enumerator);
+        if (this._enumerator !== undefined) {
             return this._enumerator.current;
         } else {
             throw new Error();
@@ -956,7 +954,7 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
     }
 
     moveNext(): boolean {
-        if (this._enumerator === null) {
+        if (this._enumerator === undefined) {
             return false;
         }
         if (this._enumerator.moveNext()) {
@@ -966,7 +964,7 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
             this._enumerator = this._outerEnumerator.current;
             return this.moveNext();
         }
-        this._enumerator = null;
+        this._enumerator = undefined;
         return false;
     }
 }
@@ -978,7 +976,7 @@ class ConcatQueryableEnumerator<T> implements IEnumerator<T> {
 export class Enumerable {
 
     constructor() { 
-        ensure.staticClass();
+        mustBe.staticClass();
     }
 
     static empty<T>(): IEnumerable<T> {
@@ -1012,9 +1010,9 @@ export class Enumerable {
         }
     
         // Assert conditions for increment
-        ensure.false(increment === 0, 'The increment cannot be zero.');
-        ensure.false(increment > 0 && start > finalEnd, 'Invalid range with positive increment.');
-        ensure.false(increment < 0 && start < finalEnd, 'Invalid range with negative increment.');
+        mustBe.false(increment === 0, 'The increment cannot be zero.');
+        mustBe.false(increment > 0 && start > finalEnd, 'Invalid range with positive increment.');
+        mustBe.false(increment < 0 && start < finalEnd, 'Invalid range with negative increment.');
     
         // Generate the range
         const result: number[] = [];
@@ -1043,7 +1041,7 @@ export class ArrayEnumerator<T> extends Object implements IEnumerator<T> {
 
     constructor(array: T[]) {
         super();
-        ensure.array(array);
+        mustBe.array(array);
         this._array = array;
     }
 
@@ -1057,28 +1055,28 @@ export class ArrayEnumerator<T> extends Object implements IEnumerator<T> {
     }
 }
 
-function compareNumbers(first: number | null | undefined, second: number | null | undefined): number {
+function compareNumbers(first: number | undefined | undefined, second: number | undefined | undefined): number {
     if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
     if (instanceIs.unspecified(first)) return -1;
     if (instanceIs.unspecified(second)) return 1;
     return (first as number) - (second as number);
 }
 
-function compareStrings(first: string | null | undefined, second: string | null | undefined): number {
+function compareStrings(first: string | undefined | undefined, second: string | undefined | undefined): number {
     if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
     if (instanceIs.unspecified(first)) return -1;
     if (instanceIs.unspecified(second)) return 1;
     return (first as string).localeCompare(second as string);
 }
 
-function compareBooleans(first: boolean | null | undefined, second: boolean | null | undefined): number {
+function compareBooleans(first: boolean | undefined | undefined, second: boolean | undefined | undefined): number {
     if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
     if (instanceIs.unspecified(first)) return -1;
     if (instanceIs.unspecified(second)) return 1;
     return first === second ? 0 : first ? 1 : -1;
 }
 
-function compareDates(first: Date | null | undefined, second: Date | null | undefined): number {
+function compareDates(first: Date | undefined | undefined, second: Date | undefined | undefined): number {
     if (instanceIs.unspecified(first) && instanceIs.unspecified(second)) return 0;
     if (instanceIs.unspecified(first)) return -1;
     if (instanceIs.unspecified(second)) return 1;
@@ -1090,7 +1088,7 @@ export class Hash {
     Returns a numeric hash for a boolean value.
     @param [key] {boolean} The value to hash
     @return {number} 1 for true and 0 for false.
-    @remarks null checking is excluded for performance.
+    @remarks undefined checking is excluded for performance.
     */
     static forBoolean(key: boolean): number {
         return +key;

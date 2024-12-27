@@ -1,14 +1,14 @@
 import { Type, Environment } from "./reflection";
 import { Dictionary, Queryable } from "./collections";
-import { Ensure, Ensure, InstanceIs } from "./util"
+import { Is, InstanceIs, Be, Must, MustBe } from "./util"
 import { Lazy } from "./util";
 
 type GlobalType = Type;
 type GlobalEnvironment = Environment
 type GlobalDictionary<TKey, TValue> = Dictionary<TKey, TValue>;
 type GlobalQueryable<T> = Queryable<T>;
-type GlobaleAssert = Ensure;
-type GlobalEnsure = Ensure;
+type GlobaleAssert = MustBe;
+type GlobalEnsure = MustBe;
 type GlobalIs = InstanceIs;
 type GlobalLazy<T> = Lazy<T>;
 
@@ -25,42 +25,45 @@ declare global {
    export type Lazy<T> = GlobalLazy<T>;
    export var environment: Environment;
    export var instanceIs: InstanceIs;
-   export var assert: Ensure;
+   export var mustBe: MustBe;
+   
+   function defined<T>(value: T | undefined| undefined, orThrow?: { orThrow: boolean | string }): value is T;
+   function notDefined<T>(value: any, orThrow?: { orThrow: boolean | string }): value is null | undefined;
 
-   function ensure<T>(value: T): asserts value is T;
-   function ensure<T>(value: T): asserts value is T;
-   function ensure<T>(value: T | undefined): asserts value is T;
-   function ensure<T>(value: T | null| undefined): asserts value is T;
-
-   function specified<T>(value: T, orThrow?: { orThrow: boolean | string }): value is T;
-   function specified<T>(value: T | null, orThrow?: { orThrow: boolean | string }): value is T;
-   function specified<T>(value: T | undefined, orThrow?: { orThrow: boolean | string }): value is T;
-   function specified<T>(value: T | null| undefined, orThrow?: { orThrow: boolean | string }): value is T;
-   function unspecified<T>(value: any, orThrow?: { orThrow: boolean | string }): value is null | undefined;
-
-   //Adding additional members to the Object class to support basic functionality
-   interface Object {
-      get type(): Type;
-      get hashCode(): number;
+   interface Verifiable {
       get is(): Is;
+      get must(): Must;
+      mustbe<T>(type: Constructor<T>): asserts this is T;
    }
 
-   interface String {
+   interface Object extends Verifiable {
       get type(): Type;
       get hashCode(): number;
-      get is(): Is;
    }
 
-   interface Boolean {
+   interface String extends Verifiable {
       get type(): Type;
       get hashCode(): number;
-      get is(): Is;
    }
 
-   interface Number {
+   interface Boolean extends Verifiable {
       get type(): Type;
       get hashCode(): number;
-      get is(): Is;
+   }
+
+   interface Number extends Verifiable {
+      get type(): Type;
+      get hashCode(): number;
+   }
+
+   interface BigInt extends Verifiable {
+      get type(): Type;
+      get hashCode(): number;
+   }
+
+   interface Symbol extends Verifiable {
+      get type(): Type;
+      get hashCode(): number;
    }
 
    //Declares that Array<T> has a remove method.
@@ -208,25 +211,25 @@ declare global {
 
       //Returns the max of the values in the array.
       //If the array is empty, undefined is returned.
-      max(selector?: (item: T) => number): number | null;
+      max(selector?: (item: T) => number): number | undefined;
 
       //Sums the selected values from the sequence.
       //If the array is empty, undefined is returned.
-      min(selector?: (item: T) => number): number | null;
+      min(selector?: (item: T) => number): number | undefined;
 
       //Returns the first element satisfying the predicate.
       //Throws an exception if empty.
       first(predicate?: (item: T) => boolean): T;
 
       //Returns the first element satisfying the predicate, or null if empty.
-      firstOrDefault(predicate?: (item: T) => boolean): T | null;
+      firstOrDefault(predicate?: (item: T) => boolean): T | undefined;
 
       //Returns the last element satisfying the predicate.
       //Throws an exception if empty.
       last(predicate?: (item: T) => boolean): T;
 
       //Returns the last element satisfying the predicate, or null if empty.
-      lastOrDefault(predicate?: (item: T) => boolean): T | null;
+      lastOrDefault(predicate?: (item: T) => boolean): T | undefined;
 
       //Returns the only element satisfying the predicate.
       //Throws an exception if more then one satisfy the predicate.
@@ -234,7 +237,7 @@ declare global {
 
       //Returns the only element satisfying the predicate, or null if empty.
       //Throws an exception if more then one satisfy the predicate.
-      singleOrDefault(predicate?: (item: T) => boolean): T | null;
+      singleOrDefault(predicate?: (item: T) => boolean): T | undefined;
 
       //Skips up to the specified count, and returns the remaining elements.
       skip(count: number): IQueryable<T>;

@@ -1,15 +1,13 @@
 /// <reference path="./classical.d.ts" />
 import { Type as GlobalType, environment as globalEnvironment } from "./reflection";
 import { Dictionary as GlobalDictionary, Queryable as GlobalQueryable, ArrayEnumerator, Hash, foreach } from "./collections";
-import { Is, instanceIs, ensure, Lazy as GlobalLazy } from "./util";
+import { Is, Be, instanceIs, mustBe, Lazy as GlobalLazy } from "./util";
 import { } from "./util";
 
 var classicalInitialized: boolean | undefined;
 if (!classicalInitialized) {
     var globalScope = globalThis as any;
 
-    globalScope.typeOf = !globalScope.typeOf ? GlobalType.typeOf : (() => { throw new Error("classical cannot be loaded because typeOf already exists"); })();
-    globalScope.instanceOf = !globalScope.instanceOf ? GlobalType.instanceOf : (() => { throw new Error("classical cannot be loaded because instanceOf already exists"); })();
     globalScope.Type = !globalScope.Type ? GlobalType : (() => { throw new Error("classical cannot be loaded because Type already exists"); })();
     globalScope.Environment = !globalScope.Environment ? globalEnvironment : (() => { throw new Error("classical cannot be loaded because Environment already exists"); })();
     globalScope.Dictionary = !globalScope.Dictionary ? GlobalDictionary : (() => { throw new Error("classical cannot be loaded because Dictionary already exists"); })();
@@ -17,33 +15,287 @@ if (!classicalInitialized) {
     globalScope.Lazy = !globalScope.Lazy ? GlobalLazy : (() => { throw new Error("classical cannot be loaded because Lazy already exists"); })();
     globalScope.environment = !globalScope.environment ? globalEnvironment : (() => { throw new Error("classical cannot be loaded because environment already exists"); })();
     globalScope.instanceIs = !globalScope.instanceIs ? instanceIs : (() => { throw new Error("classical cannot be loaded because instanceIs already exists"); })();
-    globalScope.ensure = !globalScope.ensure ? ensure : (() => { throw new Error("classical cannot be loaded because ensure already exists"); })();
+    globalScope.mustBe = !globalScope.mustBe ? mustBe : (() => { throw new Error("classical cannot be loaded because mustBe already exists"); })();
 
-    globalScope.ensure = function <T>(value: T | null | undefined | any): asserts value is T {
-        instanceIs.specified(value, { orThrow: true });
-    }
+    globalScope.typeOf = GlobalType.typeOf;
+    globalScope.instanceOf = GlobalType.instanceOf;
+    globalScope.defined = function(value: any, orThrow: any) { return instanceIs.defined(value, orThrow) };
+    globalScope.notDefined = function(value: any, orThrow: any) { return instanceIs.notDefined(value, orThrow) };
 
-    globalScope.specified = function <T>(value: T | null | undefined | any, orThrow?: { orThrow: boolean | string }): value is T {
-        return instanceIs.specified(value, orThrow);
-    }
-
-    globalScope.unspecified = function <T>(value: T | null | undefined | any, orThrow?: { orThrow: boolean | string }): value is null | undefined {
-        return instanceIs.unspecified(value, orThrow);
-    }
-
-    // Define `type` as a property that returns the object's type
+    // For Object prototype
     Object.defineProperty(Object.prototype, 'type', {
         get: function () {
-            return GlobalType.typeOf(this.constructor);
+            return typeOf(this.constructor);
         },
         enumerable: false,
         configurable: true
     });
 
-    // Define `is` as a method to check the object's type
+    // For Number primitive wrapper - using constructor for subclassing support
+    Object.defineProperty(Number.prototype, 'type', {
+        get: function () {
+            return typeOf(this.constructor);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For String primitive wrapper - using constructor for subclassing support
+    Object.defineProperty(String.prototype, 'type', {
+        get: function () {
+            return typeOf(this.constructor);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Boolean primitive wrapper - using constructor for subclassing support
+    Object.defineProperty(Boolean.prototype, 'type', {
+        get: function () {
+            return typeOf(this.constructor);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Symbol primitive wrapper - using constructor for subclassing support
+    Object.defineProperty(Symbol.prototype, 'type', {
+        get: function () {
+            return typeOf(this.constructor);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For BigInt primitive wrapper - using constructor for subclassing support
+    Object.defineProperty(BigInt.prototype, 'type', {
+        get: function () {
+            return typeOf(this.constructor);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // Define `hashCode` as a property that computes or retrieves a hash code
+    Object.defineProperty(Object.prototype, 'hashCode', {
+        get: function () {
+            if (this._hashCode === undefined) {
+                Object.defineProperty(this, '_hashCode', {
+                    value: Hash.forNumber(Math.random()),
+                    enumerable: false
+                });
+            }
+            return this._hashCode;
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Number primitive wrapper
+    Object.defineProperty(Number.prototype, 'hashCode', {
+        get: function () {
+            return Hash.forNumber(this.valueOf());
+        },
+        enumerable: false
+    });
+
+    // For String primitive wrapper
+    Object.defineProperty(String.prototype, 'hashCode', {
+        get: function () {
+            return Hash.forString(this.valueOf());
+        },
+        enumerable: false
+    });
+
+    // For Boolean primitive wrapper
+    Object.defineProperty(Boolean.prototype, 'hashCode', {
+        get: function () {
+            return Hash.forNumber(this.valueOf() ? 1 : 0);
+        },
+        enumerable: false
+    });
+
+    // For Symbol primitive wrapper
+    Object.defineProperty(Symbol.prototype, 'hashCode', {
+        get: function () {
+            return Hash.forString(this.toString());
+        },
+        enumerable: false
+    });
+
+    // For BigInt primitive wrapper
+    Object.defineProperty(BigInt.prototype, 'hashCode', {
+        get: function () {
+            return Hash.forString(this.toString());
+        },
+        enumerable: false
+    });
+
+    // Define `is` as a property on Object prototype
     Object.defineProperty(Object.prototype, 'is', {
-        get: function (): Is {
+        get: function () {
+            if (this._is === undefined) {
+                Object.defineProperty(this, '_is', {
+                    value: new Is(this),
+                    enumerable: false
+                });
+            }
+            return this._is;
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Number primitive wrapper
+    Object.defineProperty(Number.prototype, 'is', {
+        get: function () {
             return new Is(this);
+        },
+        enumerable: false
+    });
+
+    // For String primitive wrapper
+    Object.defineProperty(String.prototype, 'is', {
+        get: function () {
+            return new Is(this);
+        },
+        enumerable: false
+    });
+
+    // For Boolean primitive wrapper
+    Object.defineProperty(Boolean.prototype, 'is', {
+        get: function () {
+            return new Is(this);
+        },
+        enumerable: false
+    });
+
+    // For Symbol primitive wrapper
+    Object.defineProperty(Symbol.prototype, 'is', {
+        get: function () {
+            return new Is(this);
+        },
+        enumerable: false
+    });
+
+    // For BigInt primitive wrapper
+    Object.defineProperty(BigInt.prototype, 'is', {
+        get: function () {
+            return new Is(this);
+        },
+        enumerable: false
+    });
+
+    // Define `mustbe` as a property on Object prototype
+    Object.defineProperty(Object.prototype, 'must', {
+        get: function () {
+            if (this._mustbe === undefined) {
+                Object.defineProperty(this, '_must', {
+                    value: { be: new Be<Object>(this) },
+                    enumerable: false
+                });
+            }
+            return this._mustbe;
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Number primitive wrapper
+    Object.defineProperty(Number.prototype, 'must', {
+        get: function () {
+            return { be: new Be<Number>(this) };
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For String primitive wrapper
+    Object.defineProperty(String.prototype, 'must', {
+        get: function () {
+            return { be: new Be<String>(this) };
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Boolean primitive wrapper
+    Object.defineProperty(Boolean.prototype, 'must', {
+        get: function () {
+            return { be: new Be<Boolean>(this) };
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Symbol primitive wrapper
+    Object.defineProperty(Symbol.prototype, 'must', {
+        get: function () {
+            return { be: new Be<Symbol>(this) };
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For BigInt primitive wrapper
+    Object.defineProperty(BigInt.prototype, 'must', {
+        get: function () {
+            return { be: new Be<BigInt>(this) };
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Object prototype
+    const orThrow = { orThrow: true };
+    Object.defineProperty(Object.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Number prototype
+    Object.defineProperty(Number.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For String prototype
+    Object.defineProperty(String.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Boolean prototype
+    Object.defineProperty(Boolean.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For Symbol prototype
+    Object.defineProperty(Symbol.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
+        },
+        enumerable: false,
+        configurable: true
+    });
+
+    // For BigInt prototype
+    Object.defineProperty(BigInt.prototype, 'mustbe', {
+        value: function <T>(type: Constructor<T>): asserts this is T {
+            instanceIs(this, type, orThrow);
         },
         enumerable: false,
         configurable: true
@@ -62,8 +314,8 @@ if (!classicalInitialized) {
     // Adds the items to the end of the array. The array is returned for chaining.
     Object.defineProperty(Array.prototype, 'addRange', {
         value: function (items: IEnumerable<any>) {
-            ensure(items);
-            ensure.array(items, "The items are null or undefined.");
+            mustBe(items);
+            mustBe.array(items, "The items are null or undefined.");
             items.foreach(item => this.add(item));
             return this;
         },
@@ -74,7 +326,7 @@ if (!classicalInitialized) {
     // Removes the first item in the array equal to the item. The array is returned for chaining.
     Object.defineProperty(Array.prototype, 'remove', {
         value: function (item: any) {
-            ensure.array(this, "The array is null or undefined.");
+            mustBe.array(this, "The array is null or undefined.");
             const array: any[] = this;
             for (let i = 0; i < array.length; i++) {
                 if (instanceIs.equal(item, array[i])) {
@@ -91,8 +343,8 @@ if (!classicalInitialized) {
     // Removes the element at the specified index. The array is returned for chaining.
     Object.defineProperty(Array.prototype, 'removeAt', {
         value: function (index: number) {
-            ensure.array(this, "The array is null or undefined.");
-            ensure.true(index >= 0 && index < this.length, 'The index is out of range.');
+            mustBe.array(this, "The array is null or undefined.");
+            mustBe.true(index >= 0 && index < this.length, 'The index is out of range.');
             this.splice(index, 1);
             return this;
         },
@@ -103,7 +355,7 @@ if (!classicalInitialized) {
     // Clears all elements from the collection.
     Object.defineProperty(Array.prototype, 'clear', {
         value: function () {
-            ensure.array(this, "The array is null or undefined.");
+            mustBe.array(this, "The array is null or undefined.");
             this.length = 0;
             return this;
         },
@@ -114,8 +366,8 @@ if (!classicalInitialized) {
     // Returns the element at the specified index.
     Object.defineProperty(Array.prototype, 'get', {
         value: function (index: number) {
-            ensure.array(this, "The array is null or undefined.");
-            ensure.true(index >= 0 && index < this.length, 'The index is out of range.');
+            mustBe.array(this, "The array is null or undefined.");
+            mustBe.true(index >= 0 && index < this.length, 'The index is out of range.');
             return this[index];
         },
         enumerable: false,
@@ -125,7 +377,7 @@ if (!classicalInitialized) {
     // Sets the element at the specified index.
     Object.defineProperty(Array.prototype, 'set', {
         value: function (index: number, item: any) {
-            ensure.true(index >= 0, 'The index must be greater than or equal to zero.');
+            mustBe.true(index >= 0, 'The index must be greater than or equal to zero.');
             this[index] = item;
             return this;
         },
@@ -186,81 +438,6 @@ if (!classicalInitialized) {
         },
         enumerable: false,
         configurable: true,
-    });
-
-    // Adds a unique hash code to a function.
-    Object.defineProperty(Function.prototype, 'getHashCode', {
-        value: function () {
-            if (this._hashCode === undefined) this._hashCode = Hash.forNumber(Math.random());
-            return this._hashCode;
-        },
-        enumerable: false,
-        configurable: true,
-    });
-
-    // Adds a unique hash code to a date object.
-    Object.defineProperty(Date.prototype, 'getHashCode', {
-        value: function () {
-            if (this._hashCode == undefined) this._hashCode = Hash.forNumber(Math.random());
-            return this._hashCode;
-        },
-        enumerable: false,
-        configurable: true,
-    });
-
-    // Define `hashCode` as a property that computes or retrieves a hash code
-    Object.defineProperty(Object.prototype, 'hashCode', {
-        get: function () {
-            if (this._hashCode === undefined) {
-                Object.defineProperty(this, '_hashCode', {
-                    value: Hash.forNumber(Math.random()),
-                    enumerable: false
-                });
-            }
-            return this._hashCode;
-        },
-        enumerable: false,
-        configurable: true
-    });
-
-    // For Number primitive wrapper
-    Object.defineProperty(Number.prototype, 'hashCode', {
-        get: function () {
-            return Hash.forNumber(this.valueOf());
-        },
-        enumerable: false
-    });
-
-    // For String primitive wrapper
-    Object.defineProperty(String.prototype, 'hashCode', {
-        get: function () {
-            return Hash.forString(this.valueOf());
-        },
-        enumerable: false
-    });
-
-    // For Boolean primitive wrapper
-    Object.defineProperty(Boolean.prototype, 'hashCode', {
-        get: function () {
-            return Hash.forNumber(this.valueOf() ? 1 : 0);
-        },
-        enumerable: false
-    });
-
-    // For Symbol primitive wrapper
-    Object.defineProperty(Symbol.prototype, 'hashCode', {
-        get: function () {
-            return Hash.forString(this.toString());
-        },
-        enumerable: false
-    });
-
-    // For BigInt primitive wrapper
-    Object.defineProperty(BigInt.prototype, 'hashCode', {
-        get: function () {
-            return Hash.forString(this.toString());
-        },
-        enumerable: false
     });
 }
 

@@ -14,7 +14,7 @@ test('Dictionary.remove should remove a key-value pair from the dictionary', () 
     dictionary.add(1, 'one');
     dictionary.remove(1);
     const actual = dictionary.getValue(1);
-    const expected = null;
+    const expected = undefined;
     expect(actual).toBe(expected);
 });
 
@@ -26,10 +26,10 @@ test('Dictionary.getValue should return the value of the key if it exists', () =
     expect(actual).toBe(expected);
 });
 
-test('Dictionary.getValue should return null if the key does not exist', () => {
+test('Dictionary.getValue should return undefined if the key does not exist', () => {
     const dictionary = new Dictionary<number, string>();
     const actual = dictionary.getValue(1);
-    const expected = null;
+    const expected = undefined;
     expect(actual).toBe(expected);
 });
 
@@ -107,7 +107,7 @@ describe('Queryable', () => {
         expect(actual).toBe(expected);
 
         const emptyQueryable = new Queryable<number>([])
-        const expectedDefault = null;
+        const expectedDefault = undefined;
         const actualDefault = emptyQueryable.firstOrDefault();
         expect(actualDefault).toBe(expectedDefault);
     });
@@ -126,7 +126,7 @@ describe('Queryable', () => {
         expect(actual).toBe(expected);
 
         const emptyQueryable = new Queryable<number>([]);
-        const expectedDefault = null;
+        const expectedDefault = undefined;
         const actualDefault = emptyQueryable.lastOrDefault();
         expect(actualDefault).toBe(expectedDefault);
     });
@@ -336,14 +336,14 @@ describe('Queryable Tests', () => {
         expect(actual).toEqual(expected);
     });
 
-    test('should return null if no elements match the predicate', () => {
+    test('should return undefined if no elements match the predicate', () => {
         const array = new Queryable<number>([1, 2, 3, 4, 5]);
-        const expected = null;
+        const expected = undefined;
         const actual = array.singleOrDefault(n => n === 6);
         expect(actual).toEqual(expected);
     });
 
-    test('should return the first element that matches the predicate or null', () => {
+    test('should return the first element that matches the predicate or undefined', () => {
         const array = new Queryable<number>([1, 2, 3, 4, 5]);
         const expected = 4;
         const actual = array.firstOrDefault(n => n > 3);
