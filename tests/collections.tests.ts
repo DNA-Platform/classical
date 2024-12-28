@@ -261,7 +261,7 @@ describe('Queryable Tests', () => {
         const array1 = new Queryable<number>([1, 2, 3]);
         const array2 = new Queryable<number>([3, 4, 5]);
         const expected = [1, 2, 3, 4, 5];
-        const actual = array1.concat(array2).distinct().result();
+        const actual = array1.concat(array2 as any).distinct().result();
         expect(actual).toEqual(expected);
     });
 
