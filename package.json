@@ -1,7 +1,7 @@
 {
   "name": "@dna/classical",
-  "version": "1.0.1",
-  "description": "The canonical TypeScript base class library for DNA",
+  "version": "1.0.2",
+  "description": "The Canonical TypeScript Library for the DNA Platform",
   "main": "dist/classical.js",
   "types": "dist/classical.d.ts",
   "files": [
