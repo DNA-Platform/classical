@@ -1,6 +1,6 @@
 {
   "name": "@dna/classical",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "The Canonical TypeScript Library for the DNA Platform",
   "main": "dist/classical.js",
   "types": "dist/classical.d.ts",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DNA-Platform/classical.git"
+    "url": "https://github.com/DNA-Platform/classical.git"
   },
   "author": "Doug",
   "license": "MIT",
